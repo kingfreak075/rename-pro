@@ -11,6 +11,12 @@ import * as toast from './ui/toast.js';
 import * as spinner from './ui/spinner.js';
 import * as headerUI from './ui/header.js';
 import * as listUI from './ui/list.js';
+import * as pdfViewer from './pdf/pdf-viewer.js';
+import * as pdfTextlayer from './pdf/pdf-textlayer.js';
+import * as pdfPan from './pdf/pdf-pan.js';
+import * as searchPanel from './search/search-panel.js';
+import * as detailsModal from './search/details-modal.js';
+import * as searchEngine from './search/search-engine.js';
 
 // Moduli placeholder (verranno attivati negli step successivi)
 // import * as listUI from './ui/list.js';
@@ -39,12 +45,24 @@ function init() {
 
   checkBrowserSupport();
 
-    // UI
+   // UI
   toast.init();
   spinner.init();
   headerUI.init();
   listUI.init();
 
+   // PDF
+  pdfViewer.init();
+  pdfTextlayer.init();
+  pdfPan.init();
+  pdfTextlayer.setMode('text');
+
+  // Ricerca
+  detailsModal.init();
+  searchPanel.init();
+
+
+  
   initBaseUI();
   registerGlobalListeners();
 

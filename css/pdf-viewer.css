@@ -82,7 +82,7 @@
   right: 0;
   bottom: 0;
   overflow: hidden;
-  opacity: 0.2;
+  opacity: 0.25;
   line-height: 1;
   pointer-events: none;
   z-index: 2;
@@ -98,7 +98,7 @@
 }
 
 .text-layer ::selection {
-  background: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.5);
   color: transparent;
 }
 

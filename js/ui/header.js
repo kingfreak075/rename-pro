@@ -24,6 +24,7 @@ export function init() {
   bindDestinationFolder();
   bindDbUpload();
   bindIaUpload();
+   bindPasteSearch();   // ← AGGIUNGI QUESTA
 }
 
 // ============================================================
@@ -166,4 +167,38 @@ export function updateRenameAllButton() {
   const hasDestination = !!state.destinationFolderHandle;
   const hasProcessed = state.pdfItems.some((i) => i.status === 'processed');
   btn.disabled = !(hasDestination && hasProcessed);
+}
+
+
+/**
+ * Collega il bottone "Cerca Selezione" del PDF.
+ */
+/**
+ * Collega il bottone "Cerca Selezione" del PDF.
+ */
+function bindPasteSearch() {
+  const btn = document.getElementById('btnPasteSearch');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    // Ottieni la selezione corrente
+    const selection = window.getSelection().toString().trim();
+
+    if (!selection) {
+      bus.emit(EVENTS.TOAST_SHOW, {
+        message: 'Seleziona del testo nel PDF prima di cercare',
+        type: 'warning',
+      });
+      return;
+    }
+
+    // Import dinamico del modulo (evita dipendenze circolari)
+    const searchPanel = await import('../search/search-panel.js');
+    searchPanel.searchFromExternal(selection);
+
+    bus.emit(EVENTS.TOAST_SHOW, {
+      message: `Ricerca: "${selection.substring(0, 50)}${selection.length > 50 ? '...' : ''}"`,
+      type: 'info',
+    });
+  });
 }
