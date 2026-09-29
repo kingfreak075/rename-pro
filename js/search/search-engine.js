@@ -46,28 +46,46 @@ export function search(query, options = {}) {
 
     let matchedField = null;
     let matchedVariant = null;
+    let matchedQuality = 'low'; // 'exact' | 'word' | 'low'
 
     // 1. Match matricola (priorità alta)
     if (matricola.includes(q) || (qMatricola.length >= 2 && matricolaCompact.includes(qMatricola))) {
       matchedField = 'matricola';
+      matchedQuality = 'exact';
     }
-    // 2. Match con varianti
+    // 2. Match con varianti (word boundary o includes)
     else {
       for (const variant of variants) {
         if (!variant || variant.length < 2) continue;
         const v = normalizeString(variant);
         if (!v) continue;
 
-        if (indirizzo.includes(v)) { matchedField = 'indirizzo'; matchedVariant = v; break; }
-        if (localita.includes(v)) { matchedField = 'localita'; matchedVariant = v; break; }
-        if (codice.includes(v)) { matchedField = 'codice'; matchedVariant = v; break; }
-        if (cliente.includes(v)) { matchedField = 'cliente'; matchedVariant = v; break; }
-        if (zonaField.includes(v)) { matchedField = 'zona'; matchedVariant = v; break; }
+        // Prova match "word boundary" (più preciso)
+        const wordMatch = matchWordBoundary(v, indirizzo) ||
+                          matchWordBoundary(v, localita) ||
+                          matchWordBoundary(v, codice) ||
+                          matchWordBoundary(v, cliente) ||
+                          matchWordBoundary(v, zonaField);
+
+        if (wordMatch) {
+          matchedField = wordMatch.field;
+          matchedVariant = v;
+          matchedQuality = 'word';
+          break;
+        }
+
+        // Fallback: match semplice (includes)
+        if (indirizzo.includes(v)) { matchedField = 'indirizzo'; matchedVariant = v; matchedQuality = 'low'; break; }
+        if (localita.includes(v)) { matchedField = 'localita'; matchedVariant = v; matchedQuality = 'low'; break; }
+        if (codice.includes(v)) { matchedField = 'codice'; matchedVariant = v; matchedQuality = 'low'; break; }
+        if (cliente.includes(v)) { matchedField = 'cliente'; matchedVariant = v; matchedQuality = 'low'; break; }
+        if (zonaField.includes(v)) { matchedField = 'zona'; matchedVariant = v; matchedQuality = 'low'; break; }
       }
     }
 
     if (matchedField) {
       let score = 10;
+
       const fieldValue =
         matchedField === 'indirizzo' ? indirizzo :
         matchedField === 'localita' ? localita :
@@ -76,17 +94,31 @@ export function search(query, options = {}) {
         matchedField === 'cliente' ? cliente :
         zonaField;
 
-      // Match esatto con query originale
+      // Punteggio base
       if (fieldValue === q) score = 100;
       else if (fieldValue.startsWith(q)) score = 50;
-      // Match con variante (meno preciso)
+      else if (matchedQuality === 'word') score = 40;
       else if (matchedVariant && matchedVariant !== q) {
         score = Math.min(80, 20 + matchedVariant.length * 2);
       }
 
+      // 3. PESI PER CAMPO (priorità)
+      const fieldWeights = {
+        matricola: 1.5,
+        codice: 1.2,
+        indirizzo: 1.0,
+        localita: 0.6,   // ← penalizza la località
+        cliente: 0.7,
+        zona: 0.5,
+      };
+      score = Math.round(score * (fieldWeights[matchedField] || 1.0));
+
+      // 4. BONUS se match esatto word boundary
+      if (matchedQuality === 'word') score += 15;
+
       // Match esatto matricola = score massimo
       if (matchedField === 'matricola' && matricolaCompact === qMatricola) {
-        score = 150;
+        score = 200;
       }
 
       const id = String(imp.impianto);
@@ -102,11 +134,22 @@ export function search(query, options = {}) {
 }
 
 /**
+ * Verifica se una stringa matcha una parola intera in un campo.
+ * Restituisce { field } se matcha, altrimenti null.
+ */
+function matchWordBoundary(query, fieldValue) {
+  if (!query || !fieldValue) return null;
+
+  // Escape dei caratteri speciali regex
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+
+  if (regex.test(fieldValue)) return true;
+  return null;
+}
+
+/**
  * Genera varianti della query per fallback progressivo.
- * Gestisce:
- * - Punti (A. MENGANTI → A MENGANTI → AMENGANTI)
- * - Iniziali (A. MENGANTI → MENGANTI)
- * - Parole lunghe (solo il cognome)
  */
 function generateQueryVariants(query) {
   const variants = [query];
@@ -126,8 +169,7 @@ function generateQueryVariants(query) {
   // 2. Rimuovi punti senza spazio → "amenganti"
   add(query.replace(/\./g, '').replace(/\s+/g, ' '));
 
-  // 3. Rimuovi iniziali puntate (singola lettera + punto)
-  //    Es: "A. MENGANTI" → "MENGANTI"
+  // 3. Rimuovi iniziali puntate
   add(query.replace(/\b[A-ZÀÈÉÌÒÙ]\.\s*/gi, '').trim());
 
   // 4. Rimuovi prefisso stradale
