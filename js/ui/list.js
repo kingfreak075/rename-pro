@@ -252,18 +252,82 @@ function bindItemEvents() {
 // AZIONI
 // ============================================================
 
+import * as matcher from '../data/matcher.js';   // ← aggiungi import in cima
+
+// ...
+
 function selectPdf(idx) {
   state.selectPdf(idx);
-  // L'evento PDF_SELECTED triggera re-render
 
-  // Emetti evento per il viewer PDF (sarà implementato in 2.5)
+  // Emetti evento per il viewer PDF
   bus.emit('pdf:load-request', { idx });
+
+  // Match IA
+  const item = state.pdfItems[idx];
+  if (!item) return;
+
+  const iaRecord = matcher.findIaRecord(item.name);
+  const needsManual = !iaRecord || iaRecord.esito === 'Negativo';
+
+  if (iaRecord) {
+    // Salva record nello stato
+    state.setCurrentIaMatch(iaRecord, needsManual);
+
+    // Mostra pannello IA
+    bus.emit('ia:show-panel', { record: iaRecord, needsManual });
+
+    // Se positivo, precompila la ricerca
+    if (!needsManual && iaRecord.indirizzo) {
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        const normalized = matcher.getIaSearchQuery(iaRecord);
+        const cleanQuery = normalized.replace(/^(VIA|VIALE|CORSO|PIAZZA|PIAZZETTA|LARGO|VICOLO|STRADA)\s+/i, '');
+        searchInput.value = cleanQuery;
+      }
+
+      // Apri drawer e avvia ricerca automatica
+      bus.emit(EVENTS.SEARCH_OPENED);
+      setTimeout(() => {
+        const btnSearch = document.getElementById('searchBtn');
+        if (btnSearch) btnSearch.click();
+      }, 400);
+    } else {
+      // Solo apri drawer con bordo blu, senza ricerca automatica
+      bus.emit(EVENTS.SEARCH_OPENED);
+    }
+  } else {
+    // Nessun match IA → nascondi pannello, bordo blu
+    state.setCurrentIaMatch(null, true);
+    bus.emit('ia:hide-panel');
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.classList.add('needs-manual');
+      searchInput.value = '';
+    }
+  }
 }
 
 function openSearchFor(idx) {
   state.selectPdf(idx);
   bus.emit(EVENTS.SEARCH_OPENED);
+
+  // Match IA anche quando si apre il drawer manualmente
+  const item = state.pdfItems[idx];
+  if (!item) return;
+
+  const iaRecord = matcher.findIaRecord(item.name);
+  const needsManual = !iaRecord || iaRecord.esito === 'Negativo';
+
+  if (iaRecord) {
+    state.setCurrentIaMatch(iaRecord, needsManual);
+    bus.emit('ia:show-panel', { record: iaRecord, needsManual });
+  } else {
+    bus.emit('ia:hide-panel');
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.classList.add('needs-manual');
+  }
 }
+
 
 function startRename(idx) {
   const item = state.pdfItems[idx];

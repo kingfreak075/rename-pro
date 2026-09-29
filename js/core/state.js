@@ -53,6 +53,7 @@ class AppState {
     // ---------- LISTA PDF ----------
     this.pdfItems = [];           // Array di { id, name, handle, newName, selectedImpianto, iaRecord, status, isEditing }
     this.currentFilter = 'all';   // all | pending | done
+        this.currentScoreFilter = 'all';   // all | 0 | 1 | 2 | 3
     this.currentSelectedIdx = -1;
 
     // ---------- PDF CORRENTE ----------
@@ -172,7 +173,7 @@ class AppState {
    * Imposta la lista di PDF (reset).
    * @param {Array<{name, handle}>} files
    */
-  setPdfItems(files) {
+   setPdfItems(files) {
     this.pdfItems = files.map((f) => ({
       id: uuid(),
       name: f.name,
@@ -180,13 +181,19 @@ class AppState {
       newName: '',
       selectedImpianto: null,
       iaRecord: null,
-      status: 'pending',      // pending | processed
+      status: 'pending',
       isEditing: false,
+      // Score di confidenza
+      score: null,
+      scoreReason: null,
+      scoreMatchCount: null,
+      scoreMatchedBy: null,
     }));
     this.currentSelectedIdx = -1;
     this.currentPdf.pdfDoc = null;
     this.currentIaMatch = null;
     this.needsManualSearch = false;
+    this.scoresStale = false;
     bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
   }
 
@@ -246,14 +253,28 @@ class AppState {
     bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
   }
 
+    setScoreFilter(filter) {
+    this.currentScoreFilter = filter;
+    bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
+  }
+
   getFilteredPdfItems() {
+    let items = this.pdfItems;
+
+    // Filtro stato
     if (this.currentFilter === 'pending') {
-      return this.pdfItems.filter((i) => i.status === 'pending');
+      items = items.filter((i) => i.status === 'pending');
+    } else if (this.currentFilter === 'done') {
+      items = items.filter((i) => i.status === 'processed');
     }
-    if (this.currentFilter === 'done') {
-      return this.pdfItems.filter((i) => i.status === 'processed');
+
+    // Filtro score
+    if (this.currentScoreFilter !== 'all') {
+      const score = parseInt(this.currentScoreFilter, 10);
+      items = items.filter((i) => i.score === score);
     }
-    return this.pdfItems;
+
+    return items;
   }
 
   // ============================================================
@@ -266,6 +287,57 @@ class AppState {
     const done = this.pdfItems.filter((i) => i.status === 'processed').length;
     return { total, pending, done };
   }
+
+  // ============================================================
+  // SCORE DI CONFIDENZA
+  // ============================================================
+
+  /**
+   * Restituisce la distribuzione degli score correnti.
+   */
+  getScoreDistribution() {
+    const dist = { 0: 0, 1: 0, 2: 0, 3: 0 };
+    for (const item of this.pdfItems) {
+      if (item.score != null) {
+        dist[item.score]++;
+      }
+    }
+    return dist;
+  }
+
+  /**
+   * Verifica se ci sono score calcolati.
+   */
+  hasScores() {
+    return this.pdfItems.some((i) => i.score != null);
+  }
+
+  /**
+   * Marca gli score come "obsoleti" (es. dopo ricarica DB/IA).
+   */
+  markScoresStale() {
+    if (this.hasScores()) {
+      this.scoresStale = true;
+      bus.emit('score:stale');
+    }
+  }
+
+  /**
+   * Cancella tutti gli score.
+   */
+  clearScores() {
+    for (const item of this.pdfItems) {
+      item.score = null;
+      item.scoreReason = null;
+      item.scoreMatchCount = null;
+      item.scoreMatchedBy = null;
+    }
+    this.scoresStale = false;
+    bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
+  }
+
+
+
 
   // ============================================================
   // RICERCA

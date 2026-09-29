@@ -126,24 +126,30 @@
       <div class="right-column" id="rightCol">
 
         <!-- Filtri lista -->
-        <div class="list-filters" id="listFilters">
-          <button class="filter-btn active" data-filter="all">
-            Tutti <span class="badge" id="countAll">0</span>
-          </button>
-          <button class="filter-btn" data-filter="pending">
-            Da Fare <span class="badge" id="countPending">0</span>
-          </button>
-          <button class="filter-btn" data-filter="done">
-            Completati <span class="badge" id="countDone">0</span>
-          </button>
+      <div class="list-filters" id="listFilters">
+  <button class="filter-btn active" data-filter="all">
+    Tutti <span class="badge" id="countAll">0</span>
+  </button>
+  <button class="filter-btn" data-filter="pending">
+    Da Fare <span class="badge" id="countPending">0</span>
+  </button>
+  <button class="filter-btn" data-filter="done">
+    Completati <span class="badge" id="countDone">0</span>
+  </button>
 
-          <div class="filters-spacer"></div>
+  <div class="filters-spacer"></div>
 
-          <button class="btn btn-primary" id="btnOpenSearch" title="Apri ricerca">
-            <i class="fas fa-search"></i> Nuova Ricerca
-            <span class="shortcut-hint">Ctrl+K</span>
-          </button>
-        </div>
+  <button class="btn btn-ghost" id="btnCalcScore" disabled
+          data-tooltip="Calcola score di confidenza per ogni PDF"
+          data-tooltip-pos="bottom">
+    <i class="fas fa-calculator"></i> Calcola Score
+  </button>
+
+  <button class="btn btn-primary" id="btnOpenSearch" title="Apri ricerca">
+    <i class="fas fa-search"></i> Nuova Ricerca
+    <span class="shortcut-hint">Ctrl+K</span>
+  </button>
+</div>
 
         <!-- Lista PDF -->
         <div class="pdf-list" id="pdfList">

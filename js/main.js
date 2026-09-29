@@ -20,6 +20,7 @@ import * as searchEngine from './search/search-engine.js';
 import * as renameBatch from './rename/rename-batch.js';
 import * as renameEngine from './rename/rename-engine.js';
 import * as shortcuts from './ui/shortcuts.js';
+import * as iaPanel from './search/ia-panel.js';
 
 /**
  * Boot dell'applicazione.
@@ -47,7 +48,8 @@ function init() {
   spinner.init();
   headerUI.init();
   listUI.init();
-
+  // IA
+  iaPanel.init();
   // PDF
   pdfViewer.init();
   pdfTextlayer.init();

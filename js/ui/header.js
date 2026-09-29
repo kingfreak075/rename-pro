@@ -2,6 +2,8 @@
    HEADER.JS — Gestione header (cartelle, caricamento DB/IA)
    ============================================================ */
 
+   import * as scoreEngine from '../rename/score-engine.js';
+
 import { state } from '../core/state.js';
 import { bus, EVENTS } from '../core/events.js';
 import * as fs from '../fs/fs-adapter.js';
@@ -20,6 +22,8 @@ export function init() {
   bindIaUpload();
   bindPasteSearch();
   bindSessionButtons();
+
+   bindScoreButton();   // ← AGGIUNGI QUESTA
 }
 
 // ============================================================
@@ -131,6 +135,10 @@ function bindDbUpload() {
 // CARICAMENTO IA
 // ============================================================
 
+import * as iaParser from '../data/ia-parser.js';   // ← aggiungi import in cima
+
+// ...
+
 function bindIaUpload() {
   const btn = document.getElementById('btnLoadIa');
   const input = document.getElementById('iaUpload');
@@ -142,12 +150,19 @@ function bindIaUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Il parser IA verrà implementato nello Step 6
-    toast.info('Modulo IA in arrivo nello Step 6');
-    input.value = '';
+    try {
+      spinner.show('Caricamento analisi IA...');
+      await iaParser.loadAndApply(file, file.name);
+      // Il toast è già emesso da main.js su IA_LOADED
+    } catch (err) {
+      error('Errore caricamento IA:', err);
+      toast.error('Errore durante il caricamento dell\'analisi IA');
+    } finally {
+      spinner.hide();
+      input.value = '';
+    }
   });
 }
-
 // ============================================================
 // BOTTONE RINOMINA TUTTI
 // ============================================================
@@ -158,7 +173,21 @@ export function updateRenameAllButton() {
 
   const hasDestination = !!state.destinationFolderHandle;
   const hasProcessed = state.pdfItems.some((i) => i.status === 'processed');
+
   btn.disabled = !(hasDestination && hasProcessed);
+
+  // Tooltip dinamico che spiega perché è disabilitato
+  let tooltip = 'Rinomina tutti i file (Ctrl+Shift+R)';
+  if (!hasDestination && !hasProcessed) {
+    tooltip = 'Seleziona una cartella di destinazione e rinomina almeno un file';
+  } else if (!hasDestination) {
+    tooltip = 'Seleziona prima una cartella di destinazione';
+  } else if (!hasProcessed) {
+    tooltip = 'Rinomina almeno un file prima di procedere';
+  }
+
+  btn.setAttribute('data-tooltip', tooltip);
+  btn.setAttribute('title', tooltip);
 }
 
 // ============================================================
@@ -207,4 +236,93 @@ export function bindSessionButtons() {
     const renameEngine = await import('../rename/rename-engine.js');
     renameEngine.loadSession();
   });
+}
+
+// ============================================================
+// CALCOLA SCORE
+// ============================================================
+
+function bindScoreButton() {
+  const btn = document.getElementById('btnCalcScore');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    if (!state.excelData.loaded) {
+      toast.warning('Carica prima il database (DB)');
+      return;
+    }
+    if (!state.iaData.loaded) {
+      toast.warning('Carica prima l\'analisi IA');
+      return;
+    }
+    if (state.pdfItems.length === 0) {
+      toast.warning('Seleziona prima una cartella con PDF');
+      return;
+    }
+
+    spinner.show('Calcolo score di confidenza...');
+
+    // Esegui in un tick separato per permettere allo spinner di apparire
+    setTimeout(() => {
+      try {
+        const summary = scoreEngine.computeAllScores({ force: false });
+
+        if (!summary) {
+          spinner.hide();
+          toast.error('Impossibile calcolare gli score');
+          return;
+        }
+
+        spinner.hide();
+
+        // Toast con riepilogo
+        const { updated, skipped, distribution } = summary;
+        let msg = `✅ Score calcolati: ${updated} aggiornati`;
+        if (skipped > 0) msg += `, ${skipped} conservati`;
+        toast.success(msg, 5000);
+
+        // Log dettagliato
+        console.log('[Score] Distribuzione:', distribution);
+
+        // Evento per far aggiornare la lista
+        bus.emit(EVENTS.PDF_LIST_UPDATED, { count: state.pdfItems.length });
+        bus.emit('score:computed', summary);
+      } catch (err) {
+        spinner.hide();
+        error('Errore calcolo score:', err);
+        toast.error('Errore durante il calcolo degli score');
+      }
+    }, 50);
+  });
+
+  // Aggiorna stato del bottone
+  updateScoreButton();
+  bus.on(EVENTS.DB_LOADED, updateScoreButton);
+  bus.on(EVENTS.IA_LOADED, updateScoreButton);
+  bus.on(EVENTS.PDF_LIST_UPDATED, updateScoreButton);
+}
+
+function updateScoreButton() {
+  const btn = document.getElementById('btnCalcScore');
+  if (!btn) return;
+
+  const hasDb = state.excelData.loaded;
+  const hasIa = state.iaData.loaded;
+  const hasPdf = state.pdfItems.length > 0;
+
+  btn.disabled = !(hasDb && hasIa && hasPdf);
+
+  let tooltip = 'Calcola score di confidenza per ogni PDF';
+  if (!hasDb && !hasIa) {
+    tooltip = 'Carica prima DB e Analisi IA';
+  } else if (!hasDb) {
+    tooltip = 'Carica prima il database (DB)';
+  } else if (!hasIa) {
+    tooltip = 'Carica prima l\'analisi IA';
+  } else if (!hasPdf) {
+    tooltip = 'Seleziona prima una cartella con PDF';
+  }
+
+  btn.setAttribute('data-tooltip', tooltip);
+  btn.setAttribute('title', tooltip);
 }

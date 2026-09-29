@@ -4,6 +4,7 @@
 
 import { state } from '../core/state.js';
 import { normalizeString, log } from '../core/utils.js';
+import { normalizeMatricolaForSearch } from '../data/normalizer.js';
 
 /**
  * Esegue una ricerca nel database PARCO.
@@ -19,6 +20,8 @@ export function search(query, options = {}) {
   }
 
   const q = normalizeString(query);
+  const qMatricola = normalizeMatricolaForSearch(query);
+
   if (!q || q.length < 2) {
     return [];
   }
@@ -29,25 +32,27 @@ export function search(query, options = {}) {
     // Filtro zona
     if (zona && imp.zona != zona) continue;
 
-    // Cerca in vari campi
     const indirizzo = normalizeString(imp['Indirizzo impianto']);
     const localita = normalizeString(imp['Località impianto']);
     const codice = normalizeString(imp.impianto);
     const matricola = normalizeString(imp.matricola);
+    const matricolaCompact = normalizeMatricolaForSearch(imp.matricola);
     const cliente = normalizeString(imp.Cliente);
     const zonaField = normalizeString(imp.zona);
 
-    // Match: se la query è contenuta in uno dei campi
     let matchedField = null;
-    if (indirizzo.includes(q)) matchedField = 'indirizzo';
+
+    // Match su matricola (doppio: normale + compact)
+    if (matricola.includes(q) || (qMatricola.length >= 2 && matricolaCompact.includes(qMatricola))) {
+      matchedField = 'matricola';
+    }
+    else if (indirizzo.includes(q)) matchedField = 'indirizzo';
     else if (localita.includes(q)) matchedField = 'localita';
     else if (codice.includes(q)) matchedField = 'codice';
-    else if (matricola.includes(q)) matchedField = 'matricola';
     else if (cliente.includes(q)) matchedField = 'cliente';
     else if (zonaField.includes(q)) matchedField = 'zona';
 
     if (matchedField) {
-      // Calcola uno score semplice: match esatto = 100, inizio = 50, contiene = 10
       let score = 10;
       const fieldValue =
         matchedField === 'indirizzo' ? indirizzo :
@@ -60,13 +65,16 @@ export function search(query, options = {}) {
       if (fieldValue === q) score = 100;
       else if (fieldValue.startsWith(q)) score = 50;
 
+      // Match esatto di matricola = score massimo
+      if (matchedField === 'matricola' && matricolaCompact === qMatricola) {
+        score = 150;
+      }
+
       results.push({ impianto: imp, score, matchedField });
     }
   }
 
-  // Ordina per score decrescente
   results.sort((a, b) => b.score - a.score);
-
   return results.slice(0, limit).map((r) => r.impianto);
 }
 

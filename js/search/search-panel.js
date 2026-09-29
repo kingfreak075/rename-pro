@@ -71,7 +71,8 @@ export function open() {
   drawer.classList.add('open');
   drawer.setAttribute('aria-hidden', 'false');
 
-  setTimeout(() => input?.focus(), 300);
+  // Focus sull'input dopo animazione
+  setTimeout(() => input?.focus(), 350);
 
   // Emetti SEARCH_OPENED solo se non era già aperto (evita loop)
   if (!wasOpen) {
@@ -79,10 +80,17 @@ export function open() {
   }
 }
 
+
 export function close() {
   if (!drawer) return;
+
   drawer.classList.remove('open');
   drawer.setAttribute('aria-hidden', 'true');
+
+  // Riporta focus al bottone che ha aperto il drawer
+  const btnOpen = document.getElementById('btnOpenSearch');
+  if (btnOpen) btnOpen.focus();
+
   bus.emit(EVENTS.SEARCH_CLOSED);
 }
 
@@ -121,6 +129,7 @@ function performSearch(saveToHistory = true) {
       <div class="empty-state">
         <i class="fas fa-database"></i>
         <p>Carica prima il database Excel</p>
+        <p class="empty-hint">Clicca su "Carica DB" nell'header</p>
       </div>`;
     return;
   }
@@ -150,6 +159,7 @@ function renderResults(results, query) {
       <div class="empty-state">
         <i class="fas fa-search"></i>
         <p>Nessun risultato per "${escapeHtml(query)}"</p>
+        <p class="empty-hint">Prova a rimuovere il filtro zona o a cercare diversamente</p>
       </div>`;
     return;
   }
@@ -180,10 +190,10 @@ function renderResults(results, query) {
               </div>
             </div>
             <div class="result-card-actions">
-              <button class="btn btn-ghost btn-icon" data-action="details" title="Dettagli">
+              <button class="btn btn-ghost btn-icon" data-action="details" data-tooltip="Dettagli" data-tooltip-pos="left">
                 <i class="fas fa-info-circle"></i>
               </button>
-              <button class="btn btn-success btn-icon" data-action="apply" title="Applica nome">
+              <button class="btn btn-success btn-icon" data-action="apply" data-tooltip="Applica nome" data-tooltip-pos="left">
                 <i class="fas fa-check"></i>
               </button>
             </div>
