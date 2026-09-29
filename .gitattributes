@@ -1,0 +1,21 @@
+# Normalizza i line ending su tutti i file di testo
+* text=auto eol=lf
+
+# File binari (non toccare)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.xlsx binary
+*.xls binary
+*.zip binary
+
+# File minificati (non convertire)
+*.min.js text eol=lf
+*.min.css text eol=lf

@@ -1,0 +1,14 @@
+{
+  "name": "rename-pro",
+  "version": "1.0.0",
+  "description": "Tool web per la rinomina massiva di verbali PDF di impianti",
+  "type": "module",
+  "scripts": {
+    "build": "node build/build.mjs",
+    "serve": "python -m http.server 8080",
+    "serve:node": "npx serve ."
+  },
+  "keywords": ["pdf", "rename", "impianti", "verbali"],
+  "author": "",
+  "license": "UNLICENSED"
+}
