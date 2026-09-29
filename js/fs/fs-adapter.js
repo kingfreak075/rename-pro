@@ -1,25 +1,5 @@
 /* ============================================================
    FS-ADAPTER.JS — Wrapper unificato File System Access API
-   (Placeholder — verrà implementato nello Step 5)
-   ============================================================ */
-
-import { log } from '../core/utils.js';
-
-export const isSupported = 'showDirectoryPicker' in window;
-
-export function logSupport() {
-  log('FS Adapter — supporto:', isSupported);
-}
-
-// Le funzioni verranno aggiunte nello Step 5:
-// - pickSourceFolder()
-// - pickDestinationFolder()
-// - listPdfFiles(handle)
-// - readFile(handle)
-// - writeFile(dirHandle, name, blob)
-
-/* ============================================================
-   FS-ADAPTER.JS — Wrapper unificato File System Access API
    ============================================================ */
 
 import { log, warn } from '../core/utils.js';
@@ -70,7 +50,6 @@ export async function listPdfFiles(dirHandle) {
         files.push({ name: entry.name, handle: entry });
       }
     }
-    // Ordina alfabeticamente
     files.sort((a, b) => a.name.localeCompare(b.name, 'it'));
     log(`${files.length} PDF trovati in "${dirHandle.name}"`);
     return files;
@@ -82,8 +61,6 @@ export async function listPdfFiles(dirHandle) {
 
 /**
  * Legge un file come ArrayBuffer.
- * @param {FileSystemFileHandle} fileHandle
- * @returns {Promise<ArrayBuffer>}
  */
 export async function readFileAsArrayBuffer(fileHandle) {
   const file = await fileHandle.getFile();
@@ -100,9 +77,6 @@ export async function readFileAsText(fileHandle) {
 
 /**
  * Scrive un Blob in un file nella cartella di destinazione.
- * @param {FileSystemDirectoryHandle} dirHandle
- * @param {string} fileName
- * @param {Blob|File} content
  */
 export async function writeFile(dirHandle, fileName, content) {
   const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
