@@ -21,6 +21,7 @@ import * as renameBatch from './rename/rename-batch.js';
 import * as renameEngine from './rename/rename-engine.js';
 import * as shortcuts from './ui/shortcuts.js';
 import * as iaPanel from './search/ia-panel.js';
+import * as scoreBanner from './ui/score-banner.js';
 
 /**
  * Boot dell'applicazione.
@@ -62,6 +63,9 @@ function init() {
 
   // Rinomina + Shortcuts
   shortcuts.init();
+
+    // Score banner
+  scoreBanner.init();
 
   // Collega il bottone "Rinomina Tutti"
   document.getElementById('btnRenameAll')?.addEventListener('click', () => {

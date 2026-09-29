@@ -171,6 +171,35 @@
     <option value="original">Ordine originale</option>
   </select>
 </div>
+        <!-- Banner riepilogo score -->
+        <div class="score-banner" id="scoreBanner" hidden>
+          <div class="score-banner-content">
+            <div class="score-banner-title">
+              <i class="fas fa-chart-pie"></i> Riepilogo Confidenza
+            </div>
+            <div class="score-banner-stats">
+              <span class="score-stat score-stat-3" id="scoreStat3">🟢 0</span>
+              <span class="score-stat score-stat-2" id="scoreStat2">🟡 0</span>
+              <span class="score-stat score-stat-1" id="scoreStat1">🟠 0</span>
+              <span class="score-stat score-stat-0" id="scoreStat0">🔴 0</span>
+            </div>
+            <div class="score-banner-time">
+              <i class="fas fa-clock"></i> Stima: <strong id="scoreEstimate">—</strong>
+            </div>
+            <div class="score-banner-actions">
+              <button class="btn btn-ghost btn-sm" id="btnGoToSafe" 
+                      data-tooltip="Filtra e ordina per score 3 (match sicuri)" data-tooltip-pos="bottom">
+                <i class="fas fa-bullseye"></i> Vai ai sicuri
+              </button>
+              <button class="btn btn-ghost btn-sm" id="btnRecalcScore"
+                      data-tooltip="Ricalcola gli score" data-tooltip-pos="bottom">
+                <i class="fas fa-rotate"></i> Ricalcola
+              </button>
+            </div>
+          </div>
+        </div>
+
+
         <!-- Lista PDF -->
         <div class="pdf-list" id="pdfList">
           <div class="empty-state">
