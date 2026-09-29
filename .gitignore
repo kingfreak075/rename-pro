@@ -1,0 +1,29 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (per build script futuro)
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Build output
+dist/
+build/output/
+
+# Temp
+*.log
+*.tmp
+.env
+.env.local
+
+# OneDrive
+*.lnk

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Rinomina massiva di verbali PDF impianti">
+  <title>Rinomina Pro — Gestione Impianti</title>
+
+  <!-- FontAwesome locale -->
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+
+  <!-- CSS modulari -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pdf-viewer.css">
+  <link rel="stylesheet" href="css/list.css">
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+
+  <div class="container" id="app">
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="header">
+      <div class="header-left">
+        <h1>
+          <i class="fas fa-file-invoice" style="color:var(--primary)"></i>
+          Rinomina Pro
+        </h1>
+
+        <div class="folder-controls">
+          <button class="btn btn-ghost" id="btnSelectSource" title="Seleziona cartella sorgente">
+            <i class="fas fa-folder-open"></i> Sorgente
+          </button>
+          <div class="path-badge" id="sourceFolderPath">Nessuna cartella</div>
+          <button class="btn btn-ghost" id="btnSelectDest" title="Seleziona cartella destinazione">
+            <i class="fas fa-folder-arrow-down"></i> Destinazione
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Database principale -->
+        <div class="data-loader" id="dbLoader">
+          <span class="loader-status" id="dbStatus">
+            <i class="fas fa-database"></i> DB: No
+          </span>
+          <button class="btn btn-primary" id="btnLoadDb" title="Carica database impianti">
+            <i class="fas fa-upload"></i> Carica DB
+          </button>
+          <input type="file" id="dbUpload" hidden accept=".xlsx,.xls">
+        </div>
+
+        <!-- Analisi IA -->
+        <div class="data-loader" id="iaLoader">
+          <span class="loader-status" id="iaStatus">
+            <i class="fas fa-robot"></i> IA: No
+          </span>
+          <button class="btn btn-primary" id="btnLoadIa" title="Carica analisi IA verbali">
+            <i class="fas fa-upload"></i> Carica Analisi IA
+          </button>
+          <input type="file" id="iaUpload" hidden accept=".xlsx,.xls">
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== MAIN LAYOUT ==================== -->
+    <div class="main-layout" id="mainLayout">
+
+      <!-- ---------- COLONNA SINISTRA: PDF ---------- -->
+      <div class="left-column" id="leftCol">
+
+        <!-- Toolbar PDF -->
+        <div class="pdf-toolbar" id="pdfToolbar">
+          <button class="btn btn-ghost btn-icon" id="pdfPrevPage" title="Pagina precedente">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span id="pdfPageInfo" class="pdf-page-info">0/0</span>
+          <button class="btn btn-ghost btn-icon" id="pdfNextPage" title="Pagina successiva">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+
+          <div class="toolbar-divider"></div>
+
+          <button class="btn btn-ghost btn-icon" id="pdfZoomOut" title="Zoom -">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="pdfZoomIn" title="Zoom +">
+            <i class="fas fa-search-plus"></i>
+          </button>
+
+          <div class="toolbar-divider"></div>
+
+          <button class="btn btn-ghost btn-icon" id="pdfModeText" title="Selezione testo (Ctrl+1)">
+            <i class="fas fa-i-cursor"></i>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="pdfModePan" title="Sposta PDF (Ctrl+2)">
+            <i class="fas fa-hand-paper"></i>
+          </button>
+
+          <div class="toolbar-spacer"></div>
+
+          <button class="btn btn-primary" id="btnPasteSearch" title="Cerca testo selezionato (Ctrl+F)">
+            <i class="fas fa-paste"></i> Cerca Selezione
+          </button>
+        </div>
+
+        <!-- Canvas PDF -->
+        <div class="pdf-canvas-container cursor-text" id="pdfCanvasContainer">
+          <canvas id="pdfCanvas"></canvas>
+        </div>
+
+        <!-- Footer info PDF -->
+        <div class="pdf-footer" id="pdfFilename">
+          <i class="fas fa-file-pdf"></i>
+          <span class="pdf-footer-name">Nessun file selezionato</span>
+          <span class="shortcut-hint">Ctrl+↑/↓ per navigare</span>
+        </div>
+      </div>
+
+      <!-- ---------- RESIZER ---------- -->
+      <div class="resizer" id="dragHandler" title="Trascina per ridimensionare"></div>
+
+      <!-- ---------- COLONNA DESTRA: LISTA + RICERCA ---------- -->
+      <div class="right-column" id="rightCol">
+
+        <!-- Filtri lista -->
+        <div class="list-filters" id="listFilters">
+          <button class="filter-btn active" data-filter="all">
+            Tutti <span class="badge" id="countAll">0</span>
+          </button>
+          <button class="filter-btn" data-filter="pending">
+            Da Fare <span class="badge" id="countPending">0</span>
+          </button>
+          <button class="filter-btn" data-filter="done">
+            Completati <span class="badge" id="countDone">0</span>
+          </button>
+
+          <div class="filters-spacer"></div>
+
+          <button class="btn btn-primary" id="btnOpenSearch" title="Apri ricerca">
+            <i class="fas fa-search"></i> Nuova Ricerca
+            <span class="shortcut-hint">Ctrl+K</span>
+          </button>
+        </div>
+
+        <!-- Lista PDF -->
+        <div class="pdf-list" id="pdfList">
+          <div class="empty-state">
+            <i class="fas fa-folder-open"></i>
+            <p>Seleziona una cartella per iniziare</p>
+          </div>
+        </div>
+
+        <!-- ---------- DRAWER RICERCA ---------- -->
+        <aside class="search-drawer" id="searchDrawer" aria-hidden="true">
+
+          <div class="search-drawer-header">
+            <h3>
+              <i class="fas fa-search"></i> Cerca Impianto
+            </h3>
+            <button class="btn btn-ghost btn-close-search" id="btnCloseSearch">
+              <i class="fas fa-times"></i> Chiudi (Esc)
+            </button>
+          </div>
+
+          <!-- Pannello dati IA (nascosto di default) -->
+          <section class="ia-panel" id="iaPanel" hidden>
+            <!-- Popolato dinamicamente da ia-panel.js -->
+          </section>
+
+          <!-- Input ricerca -->
+          <div class="search-input-section">
+            <div class="search-input-wrap">
+              <button class="btn btn-ghost btn-icon" id="searchClear" title="Pulisci">
+                <i class="fas fa-xmark"></i>
+              </button>
+              <input type="text" id="searchInput" class="search-input"
+                     placeholder="Indirizzo, località o codice impianto..."
+                     autocomplete="off">
+              <button class="btn btn-primary" id="searchBtn">
+                <i class="fas fa-search"></i> Cerca
+              </button>
+            </div>
+
+            <div class="search-filters">
+              <button class="btn btn-ghost btn-sm" id="searchRecent">
+                <i class="fas fa-history"></i> Ultimi 10
+              </button>
+              <select id="searchZona" class="search-select">
+                <option value="">Tutte le zone</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Risultati ricerca -->
+          <div class="search-results" id="searchResults">
+            <!-- Popolato dinamicamente da search-panel.js -->
+          </div>
+
+          <!-- Preview nome file -->
+          <div class="name-preview" id="namePreview" hidden>
+            <i class="fas fa-file-signature"></i>
+            <span>Nome generato:</span>
+            <span class="name-preview-text" id="previewText"></span>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+      <div class="footer-left">
+        <button class="btn btn-ghost" id="btnSaveSession" title="Salva sessione (Ctrl+S)">
+          <i class="fas fa-save"></i> Salva
+        </button>
+        <button class="btn btn-ghost" id="btnLoadSession" title="Carica sessione">
+          <i class="fas fa-file-import"></i> Carica
+        </button>
+      </div>
+
+      <div class="progress-container" id="progressContainer" hidden>
+        <div class="progress-info">
+          <span id="progressLabel">Avanzamento</span>
+          <span id="progressText">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="footer-right">
+        <button class="btn btn-success" id="btnRenameAll" disabled
+                title="Rinomina tutti i file (Ctrl+Shift+R)">
+          <i class="fas fa-check-double"></i> Rinomina Tutti
+        </button>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ==================== MODALE DETTAGLI ==================== -->
+  <div class="modal" id="dettagliModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-building"></i> Dettagli Completi Impianto</h3>
+        <button class="modal-close" id="btnCloseDetailsModal" aria-label="Chiudi">×</button>
+      </div>
+      <div class="modal-body" id="dettagliModalContent"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btnCancelDetailsModal">Chiudi</button>
+        <button class="btn btn-success" id="btnApplyFromModal">
+          <i class="fas fa-check"></i> Applica Nome
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST CONTAINER ==================== -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- ==================== SPINNER OVERLAY ==================== -->
+  <div class="spinner-overlay" id="spinnerOverlay" hidden>
+    <div class="spinner"></div>
+    <p class="spinner-label" id="spinnerLabel">Caricamento...</p>
+  </div>
+
+  <!-- ==================== ENTRY POINT ==================== -->
+  <script type="module" src="js/main.js"></script>
+
+</body>
+</html>

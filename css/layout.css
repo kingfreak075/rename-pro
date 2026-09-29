@@ -1,0 +1,222 @@
+/* ============================================================
+   LAYOUT.CSS — Struttura principale
+   ============================================================ */
+
+/* ---------- CONTAINER APP ---------- */
+.container {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-app);
+  border-radius: var(--border-radius-lg);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+/* ---------- HEADER ---------- */
+.header {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-soft);
+  flex-shrink: 0;
+  gap: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+}
+
+.header-left h1 {
+  font-size: 1.25rem;
+  color: var(--primary-dark);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ---------- FOLDER CONTROLS ---------- */
+.folder-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-app);
+  padding: 4px;
+  border-radius: var(--border-radius-pill);
+  border: 1px solid var(--border-light);
+}
+
+.path-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 10px;
+}
+
+/* ---------- DATA LOADER ---------- */
+.data-loader {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.loader-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.loader-status.ok {
+  color: var(--secondary);
+}
+
+/* ---------- MAIN LAYOUT ---------- */
+.main-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* ---------- LEFT COLUMN (PDF) ---------- */
+.left-column {
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-light);
+  position: relative;
+  background: var(--bg-app);
+}
+
+/* ---------- RIGHT COLUMN (LIST) ---------- */
+.right-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--bg-app);
+  min-width: 400px;
+}
+
+/* ---------- RESIZER ---------- */
+.resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background var(--transition-fast);
+  z-index: var(--z-resizer);
+  flex-shrink: 0;
+}
+
+.resizer:hover,
+.resizer.dragging {
+  background: var(--primary-light);
+}
+
+/* ---------- FOOTER ---------- */
+.footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-soft);
+  flex-shrink: 0;
+  gap: 20px;
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.footer-left {
+  min-width: 200px;
+}
+
+.footer-right {
+  min-width: 200px;
+  justify-content: flex-end;
+}
+
+/* ---------- PROGRESS ---------- */
+.progress-container {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 20px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 5px;
+  color: var(--text-secondary);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--secondary);
+  width: 0%;
+  transition: width var(--transition-smooth);
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 1100px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-left,
+  .header-right {
+    justify-content: space-between;
+  }
+  .path-badge {
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 0;
+  }
+  .container {
+    border-radius: 0;
+  }
+  .header-left h1 {
+    font-size: 1rem;
+  }
+  .folder-controls .btn span,
+  .btn span.shortcut-hint {
+    display: none;
+  }
+}

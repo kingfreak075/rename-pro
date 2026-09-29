@@ -1,0 +1,179 @@
+/* ============================================================
+   BASE.CSS — Reset, variabili, tipografia
+   ============================================================ */
+
+/* ---------- RESET ---------- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-body);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img, svg, canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- VARIABILI CSS ---------- */
+:root {
+  /* Colori principali */
+  --primary-dark:    #0a2f44;
+  --primary:         #1a4b6d;
+  --primary-light:   #2a6b96;
+  --primary-lighter: #e0f2fe;
+
+  --secondary:       #2c7a4d;
+  --secondary-light: #3e9e63;
+  --secondary-lighter: #f0fdf4;
+
+  --accent:          #e6b12e;
+  --accent-light:    #fef3c7;
+
+  --danger:          #c44545;
+  --danger-light:    #fee2e2;
+
+  /* Grigi */
+  --bg-body:         #0f172a;
+  --bg-app:          #ffffff;
+  --bg-soft:         #f8fafc;
+  --bg-muted:        #f1f5f9;
+
+  --border-light:    #e2e8f0;
+  --border-medium:   #cbd5e1;
+  --border-strong:   #94a3b8;
+
+  --text-primary:    #1e293b;
+  --text-secondary:  #64748b;
+  --text-muted:      #94a3b8;
+  --text-inverse:    #ffffff;
+
+  /* Layout */
+  --border-radius:   10px;
+  --border-radius-sm: 6px;
+  --border-radius-lg: 16px;
+  --border-radius-pill: 999px;
+
+  /* Ombre */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow:    0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* Transizioni */
+  --transition-fast:   0.15s ease;
+  --transition-base:   0.2s ease;
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Z-index */
+  --z-resizer:     10;
+  --z-sticky:      5;
+  --z-drawer:      20;
+  --z-modal:       1000;
+  --z-toast:       2000;
+  --z-spinner:     3000;
+}
+
+/* ---------- TIPOGRAFIA ---------- */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--primary-dark);
+}
+
+h1 { font-size: 1.25rem; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: 1rem; }
+
+strong { font-weight: 700; }
+
+/* ---------- UTILITY ---------- */
+.hidden { display: none !important; }
+
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+.text-small { font-size: 0.85rem; }
+.text-tiny { font-size: 0.75rem; }
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ---------- SCROLLBAR (WebKit) ---------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: padding-box;
+}
+
+/* ---------- FOCUS ---------- */
+:focus-visible {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+/* ---------- SELEZIONE ---------- */
+::selection {
+  background: var(--primary-lighter);
+  color: var(--primary-dark);
+}
