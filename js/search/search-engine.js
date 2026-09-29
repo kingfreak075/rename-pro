@@ -6,27 +6,16 @@ import { state } from '../core/state.js';
 import { normalizeString, log } from '../core/utils.js';
 import { normalizeMatricolaForSearch } from '../data/normalizer.js';
 
-/**
- * Esegue una ricerca nel database PARCO.
- * @param {string} query
- * @param {Object} options - { zona: string, limit: number }
- * @returns {Array} - Array di oggetti impianto
- */
 export function search(query, options = {}) {
   const { zona = '', limit = 50 } = options;
 
-  if (!state.excelData.loaded) {
-    return [];
-  }
+  if (!state.excelData.loaded) return [];
 
   const q = normalizeString(query);
   const qMatricola = normalizeMatricolaForSearch(query);
 
-  if (!q || q.length < 2) {
-    return [];
-  }
+  if (!q || q.length < 2) return [];
 
-  // Genera varianti della query (fallback progressivo)
   const variants = generateQueryVariants(query);
   log(`Varianti per "${query}":`, variants);
 
@@ -46,32 +35,35 @@ export function search(query, options = {}) {
 
     let matchedField = null;
     let matchedVariant = null;
-    let matchedQuality = 'low'; // 'exact' | 'word' | 'low'
+    let matchedQuality = 'low';
 
     // 1. Match matricola (priorità alta)
     if (matricola.includes(q) || (qMatricola.length >= 2 && matricolaCompact.includes(qMatricola))) {
       matchedField = 'matricola';
       matchedQuality = 'exact';
     }
-    // 2. Match con varianti (word boundary o includes)
+    // 2. Match con varianti
     else {
       for (const variant of variants) {
         if (!variant || variant.length < 2) continue;
         const v = normalizeString(variant);
         if (!v) continue;
 
-        // Prova match "word boundary" (più preciso)
-        const wordMatch = matchWordBoundary(v, indirizzo) ||
-                          matchWordBoundary(v, localita) ||
-                          matchWordBoundary(v, codice) ||
-                          matchWordBoundary(v, cliente) ||
-                          matchWordBoundary(v, zonaField);
-
-        if (wordMatch) {
-          matchedField = wordMatch.field;
-          matchedVariant = v;
-          matchedQuality = 'word';
-          break;
+        // Prova match con parola intera
+        if (matchWholeWord(v, indirizzo)) {
+          matchedField = 'indirizzo'; matchedVariant = v; matchedQuality = 'word'; break;
+        }
+        if (matchWholeWord(v, localita)) {
+          matchedField = 'localita'; matchedVariant = v; matchedQuality = 'word'; break;
+        }
+        if (matchWholeWord(v, codice)) {
+          matchedField = 'codice'; matchedVariant = v; matchedQuality = 'word'; break;
+        }
+        if (matchWholeWord(v, cliente)) {
+          matchedField = 'cliente'; matchedVariant = v; matchedQuality = 'word'; break;
+        }
+        if (matchWholeWord(v, zonaField)) {
+          matchedField = 'zona'; matchedVariant = v; matchedQuality = 'word'; break;
         }
 
         // Fallback: match semplice (includes)
@@ -85,7 +77,6 @@ export function search(query, options = {}) {
 
     if (matchedField) {
       let score = 10;
-
       const fieldValue =
         matchedField === 'indirizzo' ? indirizzo :
         matchedField === 'localita' ? localita :
@@ -94,7 +85,6 @@ export function search(query, options = {}) {
         matchedField === 'cliente' ? cliente :
         zonaField;
 
-      // Punteggio base
       if (fieldValue === q) score = 100;
       else if (fieldValue.startsWith(q)) score = 50;
       else if (matchedQuality === 'word') score = 40;
@@ -102,21 +92,19 @@ export function search(query, options = {}) {
         score = Math.min(80, 20 + matchedVariant.length * 2);
       }
 
-      // 3. PESI PER CAMPO (priorità)
+      // Pesi per campo (moderati)
       const fieldWeights = {
         matricola: 1.5,
         codice: 1.2,
         indirizzo: 1.0,
-        localita: 0.6,   // ← penalizza la località
-        cliente: 0.7,
-        zona: 0.5,
+        localita: 0.8,   // ← meno penalizzante di prima
+        cliente: 0.9,
+        zona: 0.7,
       };
       score = Math.round(score * (fieldWeights[matchedField] || 1.0));
 
-      // 4. BONUS se match esatto word boundary
-      if (matchedQuality === 'word') score += 15;
+      if (matchedQuality === 'word') score += 10;
 
-      // Match esatto matricola = score massimo
       if (matchedField === 'matricola' && matricolaCompact === qMatricola) {
         score = 200;
       }
@@ -134,23 +122,19 @@ export function search(query, options = {}) {
 }
 
 /**
- * Verifica se una stringa matcha una parola intera in un campo.
- * Restituisce { field } se matcha, altrimenti null.
+ * Verifica se una stringa matcha una PAROLA INTERA (non sottostringa).
+ * Es: "maggiore" matcha "VIA MAGGIORE 1" ma NON "MAGGIORELLI"
+ * Supporta anche query multi-parola: "santa maria" matcha "VIA SANTA MARIA 1"
  */
-function matchWordBoundary(query, fieldValue) {
-  if (!query || !fieldValue) return null;
+function matchWholeWord(query, fieldValue) {
+  if (!query || !fieldValue) return false;
 
-  // Escape dei caratteri speciali regex
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // \b prima e dopo la query → garantisce confini di parola
   const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-
-  if (regex.test(fieldValue)) return true;
-  return null;
+  return regex.test(fieldValue);
 }
 
-/**
- * Genera varianti della query per fallback progressivo.
- */
 function generateQueryVariants(query) {
   const variants = [query];
   const seen = new Set([query.toLowerCase().trim()]);
@@ -163,96 +147,57 @@ function generateQueryVariants(query) {
     }
   };
 
-  // 1. Rimuovi punti → "a menganti"
   add(query.replace(/\./g, ' ').replace(/\s+/g, ' '));
-
-  // 2. Rimuovi punti senza spazio → "amenganti"
   add(query.replace(/\./g, '').replace(/\s+/g, ' '));
-
-  // 3. Rimuovi iniziali puntate
   add(query.replace(/\b[A-ZÀÈÉÌÒÙ]\.\s*/gi, '').trim());
 
-  // 4. Rimuovi prefisso stradale
   const withoutPrefix = query
     .replace(/^(VIA|VIALE|CORSO|PIAZZA|PIAZZETTA|LARGO|VICOLO|STRADA|C\.SO|V\.|V)\s+/i, '')
     .trim();
   add(withoutPrefix);
 
-  // 5. Solo parole lunghe (≥4 caratteri)
   const source = withoutPrefix || query;
   const longWords = source
     .split(/\s+/)
     .map((w) => w.replace(/[^a-z0-9àèéìòù']/gi, ''))
     .filter((w) => w.length >= 4);
 
-  if (longWords.length > 0) {
-    add(longWords.join(' '));
-  }
-
-  // 6. Solo la parola più lunga
+  if (longWords.length > 0) add(longWords.join(' '));
   if (longWords.length > 1) {
     const longest = longWords.reduce((a, b) => (a.length >= b.length ? a : b));
     add(longest);
-  }
-
-  // 7. Solo l'ultima parola lunga (cognome)
-  if (longWords.length > 1) {
     add(longWords[longWords.length - 1]);
-  }
-
-  // 8. Prima + ultima parola lunga
-  if (longWords.length >= 2) {
     add(longWords[0] + ' ' + longWords[longWords.length - 1]);
   }
 
   return variants;
 }
 
-/**
- * Restituisce i dettagli completi di un impianto.
- */
 export function getImpiantoDetails(codice) {
   if (!state.excelData.loaded) return null;
   return state.excelData.parco.find((i) => i.impianto == codice) || null;
 }
 
-/**
- * Restituisce le annotazioni per un impianto.
- */
 export function getAnnotazioni(codice, limit = 5) {
   if (!state.excelData.loaded) return [];
-  return state.excelData.annotazioni
-    .filter((a) => a.impianto_ann == codice)
-    .slice(0, limit);
+  return state.excelData.annotazioni.filter((a) => a.impianto_ann == codice).slice(0, limit);
 }
 
-/**
- * Restituisce i documenti (ELENCO) per un impianto.
- */
 export function getDocumenti(codice) {
   if (!state.excelData.loaded) return [];
   return state.excelData.elenco.filter((d) => d.IMPIANTO == codice);
 }
 
-/**
- * Restituisce il nome del commerciale (da mappature).
- */
 export function getCommerciale(codice) {
   if (!state.excelData.loaded) return 'N/A';
   return state.excelData.mappature.commerciali[codice] || codice || 'N/A';
 }
 
-/**
- * Restituisce il nome del giro (da mappature).
- */
 export function getGiro(codice) {
   if (!state.excelData.loaded) return 'N/A';
   return state.excelData.mappature.giri[codice] || codice || 'N/A';
 }
 
-/**
- * Genera il nome file finale da un impianto.
- */
 export function buildFileName(impianto) {
   if (!impianto) return '';
   return `${impianto.impianto}_BIE.pdf`;
