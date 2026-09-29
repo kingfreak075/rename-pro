@@ -1,11 +1,5 @@
 /* ============================================================
    HEADER.JS — Gestione header (cartelle, caricamento DB/IA)
-   (Placeholder — verrà implementato nello Step 2)
-   ============================================================ */
-
-// Verrà implementato nello Step 2.
-/* ============================================================
-   HEADER.JS — Gestione header (cartelle, caricamento DB/IA)
    ============================================================ */
 
 import { state } from '../core/state.js';
@@ -24,7 +18,8 @@ export function init() {
   bindDestinationFolder();
   bindDbUpload();
   bindIaUpload();
-   bindPasteSearch();   // ← AGGIUNGI QUESTA
+  bindPasteSearch();
+  bindSessionButtons();
 }
 
 // ============================================================
@@ -48,7 +43,6 @@ function bindSourceFolder() {
       state.setSourceFolder(handle);
       updateSourcePath(handle.name);
 
-      // Elenca i PDF
       spinner.show('Lettura file PDF...');
       const files = await fs.listPdfFiles(handle);
       state.setPdfItems(files);
@@ -92,7 +86,6 @@ function bindDestinationFolder() {
 
       state.setDestinationFolder(handle);
 
-      // Aggiorna bottone
       btn.innerHTML = `<i class="fas fa-check-circle"></i> ${handle.name}`;
       btn.classList.remove('btn-ghost');
       btn.classList.add('btn-success');
@@ -124,13 +117,12 @@ function bindDbUpload() {
     try {
       spinner.show('Caricamento database...');
       await excelParser.loadAndApply(file, file.name);
-      // Il toast è già emesso da main.js su DB_LOADED
     } catch (err) {
       error('Errore caricamento DB:', err);
       toast.error('Errore durante il caricamento del database');
     } finally {
       spinner.hide();
-      input.value = ''; // Reset per permettere re-upload dello stesso file
+      input.value = '';
     }
   });
 }
@@ -169,19 +161,15 @@ export function updateRenameAllButton() {
   btn.disabled = !(hasDestination && hasProcessed);
 }
 
+// ============================================================
+// CERCA SELEZIONE
+// ============================================================
 
-/**
- * Collega il bottone "Cerca Selezione" del PDF.
- */
-/**
- * Collega il bottone "Cerca Selezione" del PDF.
- */
 function bindPasteSearch() {
   const btn = document.getElementById('btnPasteSearch');
   if (!btn) return;
 
   btn.addEventListener('click', async () => {
-    // Ottieni la selezione corrente
     const selection = window.getSelection().toString().trim();
 
     if (!selection) {
@@ -192,7 +180,6 @@ function bindPasteSearch() {
       return;
     }
 
-    // Import dinamico del modulo (evita dipendenze circolari)
     const searchPanel = await import('../search/search-panel.js');
     searchPanel.searchFromExternal(selection);
 
@@ -200,5 +187,24 @@ function bindPasteSearch() {
       message: `Ricerca: "${selection.substring(0, 50)}${selection.length > 50 ? '...' : ''}"`,
       type: 'info',
     });
+  });
+}
+
+// ============================================================
+// SALVA / CARICA SESSIONE
+// ============================================================
+
+export function bindSessionButtons() {
+  const btnSave = document.getElementById('btnSaveSession');
+  const btnLoad = document.getElementById('btnLoadSession');
+
+  btnSave?.addEventListener('click', async () => {
+    const renameEngine = await import('../rename/rename-engine.js');
+    renameEngine.saveSession();
+  });
+
+  btnLoad?.addEventListener('click', async () => {
+    const renameEngine = await import('../rename/rename-engine.js');
+    renameEngine.loadSession();
   });
 }

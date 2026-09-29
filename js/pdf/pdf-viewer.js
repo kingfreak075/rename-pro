@@ -196,6 +196,9 @@ function bindWheelZoom() {
 }
 
 function bindKeyboard() {
+// In fondo a bindKeyboard(), aggiungi:
+bus.on('pdf:page-request', ({ delta }) => changePage(delta));
+
   document.addEventListener('keydown', (e) => {
     if (!state.currentPdf.pdfDoc) return;
 

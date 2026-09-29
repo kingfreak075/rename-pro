@@ -17,12 +17,9 @@ import * as pdfPan from './pdf/pdf-pan.js';
 import * as searchPanel from './search/search-panel.js';
 import * as detailsModal from './search/details-modal.js';
 import * as searchEngine from './search/search-engine.js';
-
-// Moduli placeholder (verranno attivati negli step successivi)
-// import * as listUI from './ui/list.js';
-// import * as pdfViewer from './pdf/pdf-viewer.js';
-// import * as searchPanel from './search/search-panel.js';
-// import * as shortcuts from './ui/shortcuts.js';
+import * as renameBatch from './rename/rename-batch.js';
+import * as renameEngine from './rename/rename-engine.js';
+import * as shortcuts from './ui/shortcuts.js';
 
 /**
  * Boot dell'applicazione.
@@ -45,13 +42,13 @@ function init() {
 
   checkBrowserSupport();
 
-   // UI
+  // UI
   toast.init();
   spinner.init();
   headerUI.init();
   listUI.init();
 
-   // PDF
+  // PDF
   pdfViewer.init();
   pdfTextlayer.init();
   pdfPan.init();
@@ -61,8 +58,14 @@ function init() {
   detailsModal.init();
   searchPanel.init();
 
+  // Rinomina + Shortcuts
+  shortcuts.init();
 
-  
+  // Collega il bottone "Rinomina Tutti"
+  document.getElementById('btnRenameAll')?.addEventListener('click', () => {
+    renameBatch.startBatchRename();
+  });
+
   initBaseUI();
   registerGlobalListeners();
 
@@ -106,11 +109,13 @@ function updateCounters() {
 }
 
 function registerGlobalListeners() {
+  // Contatori + bottone rename
   bus.on(EVENTS.PDF_LIST_UPDATED, () => {
     updateCounters();
     headerUI.updateRenameAllButton();
   });
 
+  // Database caricato
   bus.on(EVENTS.DB_LOADED, (data) => {
     const el = document.getElementById('dbStatus');
     if (el) {
@@ -120,6 +125,7 @@ function registerGlobalListeners() {
     toast.success(`Database caricato: ${data.count} impianti`);
   });
 
+  // IA caricata
   bus.on(EVENTS.IA_LOADED, (stats) => {
     const el = document.getElementById('iaStatus');
     if (el) {
@@ -129,6 +135,52 @@ function registerGlobalListeners() {
     toast.success(`Analisi IA caricata: ${stats.total} verbali`);
   });
 
+  // ---------- PROGRESS BATCH RENAME ----------
+  bus.on(EVENTS.RENAME_BATCH_START, ({ total }) => {
+    const container = document.getElementById('progressContainer');
+    const label = document.getElementById('progressLabel');
+    const fill = document.getElementById('progressFill');
+    const text = document.getElementById('progressText');
+    if (container) container.hidden = false;
+    if (label) label.textContent = `Rinomina 0/${total}`;
+    if (fill) fill.style.width = '0%';
+    if (text) text.textContent = '0%';
+  });
+
+  bus.on(EVENTS.RENAME_BATCH_PROGRESS, ({ current, total, percent }) => {
+    const label = document.getElementById('progressLabel');
+    const fill = document.getElementById('progressFill');
+    const text = document.getElementById('progressText');
+    if (label) label.textContent = `Rinomina ${current}/${total}`;
+    if (fill) fill.style.width = `${percent}%`;
+    if (text) text.textContent = `${percent}%`;
+  });
+
+  bus.on(EVENTS.RENAME_BATCH_END, () => {
+    setTimeout(() => {
+      const container = document.getElementById('progressContainer');
+      if (container) container.hidden = true;
+    }, 3000);
+  });
+
+  // ---------- SHORTCUT REQUESTS ----------
+  bus.on('session:save-request', () => {
+    renameEngine.saveSession();
+  });
+
+  bus.on('session:load-request', () => {
+    renameEngine.loadSession();
+  });
+
+  bus.on('pdf:change-page', ({ delta }) => {
+    bus.emit('pdf:page-request', { delta });
+  });
+
+  bus.on(EVENTS.SEARCH_CLOSED, () => {
+    document.getElementById('searchDrawer')?.classList.remove('open');
+  });
+
+  // ---------- ERRORI GLOBALI ----------
   window.addEventListener('error', (e) => {
     console.error('[Global Error]', e.error || e.message);
   });

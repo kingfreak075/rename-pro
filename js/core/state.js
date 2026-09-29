@@ -314,8 +314,42 @@ class AppState {
   /**
    * Applica una sessione caricata.
    */
+  // ============================================================
+  // SESSIONE (serializzazione)
+  // ============================================================
+
+  /**
+   * Serializza lo stato per il salvataggio sessione.
+   */
+  serializeSession() {
+    return {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      sourceFolderName: this.sourceFolderHandle?.name || null,
+      excelSourceFileName: this.excelData.sourceFileName || null,
+      iaSourceFileName: this.iaData.sourceFileName || null,
+      pdfItems: this.pdfItems.map((item) => ({
+        originalName: item.name,
+        nuovoNome: item.newName,
+        // Salva il codice impianto (per ricostruire il riferimento)
+        impiantoCodice: item.selectedImpianto?.impianto || null,
+        // Salva il nome file IA (per ricostruire il riferimento)
+        iaRecordNomeFile: item.iaRecord?.nome_file || null,
+        processed: item.status === 'processed',
+      })),
+    };
+  }
+
+  /**
+   * Applica una sessione caricata.
+   */
   restoreSession(sessionData) {
-    if (!sessionData || !Array.isArray(sessionData.pdfItems)) return;
+    if (!sessionData || !Array.isArray(sessionData.pdfItems)) {
+      warn('Sessione non valida');
+      return;
+    }
+
+    let restored = 0;
 
     sessionData.pdfItems.forEach((s) => {
       const item = this.pdfItems.find((i) => i.name === s.originalName);
@@ -325,19 +359,26 @@ class AppState {
       item.status = s.processed ? 'processed' : 'pending';
       item.isEditing = false;
 
-      // Ripristina riferimento impianto dal PARCO (se caricato)
+      // Ripristina impianto dal PARCO (se caricato)
       if (s.impiantoCodice && this.excelData.loaded) {
         item.selectedImpianto =
           this.excelData.parco.find((p) => p.impianto == s.impiantoCodice) || null;
+      } else {
+        item.selectedImpianto = null;
       }
 
       // Ripristina record IA (se caricato)
-      if (s.iaRecord?.nome_file && this.iaData.loaded) {
-        item.iaRecord = this.findIaRecordByFilename(s.iaRecord.nome_file);
+      if (s.iaRecordNomeFile && this.iaData.loaded) {
+        item.iaRecord = this.findIaRecordByFilename(s.iaRecordNomeFile);
+      } else {
+        item.iaRecord = null;
       }
+
+      restored++;
     });
 
-    bus.emit(EVENTS.SESSION_LOADED, { count: sessionData.pdfItems.length });
+    log(`Sessione ripristinata: ${restored} file`);
+    bus.emit(EVENTS.SESSION_LOADED, { count: restored });
     bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
   }
 }
