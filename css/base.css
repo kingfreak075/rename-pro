@@ -177,3 +177,12 @@ strong { font-weight: 700; }
   background: var(--primary-lighter);
   color: var(--primary-dark);
 }
+
+
+/* ============================================================
+   GESTIONE ATTRIBUTO HIDDEN
+   ============================================================ */
+
+[hidden] {
+  display: none !important;
+}
