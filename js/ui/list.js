@@ -377,13 +377,28 @@ function confirmRename(idx) {
   if (!input) return;
 
   let name = input.value.trim();
+
+  // Sanitizza input
+  name = name
+    .replace(/[\x00-\x1f\x7f]/g, '')  // Rimuovi caratteri di controllo
+    .replace(/[<>:"/\\|?*]/g, '-')     // Caratteri vietati
+    .trim();
+
   if (!name) {
-    bus.emit(EVENTS.TOAST_SHOW, { message: 'Inserisci un nome valido', type: 'warning' });
+    bus.emit(EVENTS.TOAST_SHOW, {
+      message: 'Inserisci un nome valido',
+      type: 'warning',
+    });
     return;
   }
 
   // Impone estensione .pdf
   if (!/\.pdf$/i.test(name)) name += '.pdf';
+
+  // Limita lunghezza
+  if (name.length > 200) {
+    name = name.substring(0, 195) + '.pdf';
+  }
 
   state.applyRename(idx, {
     newName: name,

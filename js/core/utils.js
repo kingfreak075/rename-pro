@@ -215,3 +215,90 @@ export function warn(...args) {
 export function error(...args) {
   console.error('[RenamePro]', ...args);
 }
+
+
+/**
+ * Sanitizza un nome file per la scrittura sicura su filesystem.
+ * Protegge da:
+ * - Path traversal (.., /, \)
+ * - Nomi nascosti (.hidden)
+ * - Nomi riservati Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+ * - Caratteri non validi su Windows/Mac/Linux
+ */
+export function sanitizeFilenameSafe(name, replacement = '-') {
+  if (!name) return 'file';
+
+  let clean = String(name)
+    // Caratteri non validi
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, replacement)
+    // Spazi multipli
+    .replace(/\s+/g, ' ')
+    // Trattini multipli
+    .replace(new RegExp(`\\${replacement}+`, 'g'), replacement)
+    // Trim
+    .trim();
+
+  // Protezione path traversal
+  clean = clean.replace(/\.\./g, '');
+
+  // Rimuovi punti iniziali (nomi nascosti)
+  clean = clean.replace(/^\.+/, '');
+
+  // Se vuoto, usa fallback
+  if (!clean) return 'file';
+
+  // Nomi riservati Windows
+  const RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i;
+  if (RESERVED.test(clean)) {
+    clean = '_' + clean;
+  }
+
+  // Limita lunghezza (255 è il massimo su ext4/NTFS)
+  if (clean.length > 200) {
+    const ext = clean.match(/\.pdf$/i);
+    const base = ext ? clean.substring(0, clean.length - 4) : clean;
+    clean = base.substring(0, 195) + (ext ? '.pdf' : '');
+  }
+
+  return clean;
+}
+
+/**
+ * Verifica se un oggetto è "plain object" (evita prototype pollution).
+ */
+export function isPlainObject(obj) {
+  if (obj === null || typeof obj !== 'object') return false;
+  if (Array.isArray(obj)) return false;
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * Pulisce una stringa rimuovendo caratteri di controllo e normalizzando.
+ * Utile per input utente.
+ */
+export function sanitizeInput(str, maxLength = 200) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/[\x00-\x1f\x7f]/g, '')  // Rimuovi caratteri di controllo
+    .replace(/\s+/g, ' ')              // Spazi multipli → singolo
+    .trim()
+    .substring(0, maxLength);
+}
+
+/**
+ * Rimuove chiavi pericolose da un oggetto (protezione prototype pollution).
+ */
+export function safeObject(obj) {
+  if (!isPlainObject(obj)) return obj;
+  const safe = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      warn(`Chiave pericolosa rimossa: ${key}`);
+      continue;
+    }
+    safe[key] = value;
+  }
+  return safe;
+}
+

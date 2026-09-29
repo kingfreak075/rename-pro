@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { bus, EVENTS } from '../core/events.js';
-import { log, error, sanitizeFilename, stripPdfExtension } from '../core/utils.js';
+import { log, error, sanitizeFilenameSafe, stripPdfExtension } from '../core/utils.js';
 import * as fs from '../fs/fs-adapter.js';
 
 /**
@@ -14,7 +14,7 @@ export function applyManualRename(idx, rawName) {
   const item = state.pdfItems[idx];
   if (!item) return false;
 
-  const cleanName = sanitizeFilename(stripPdfExtension(rawName)) + '.pdf';
+  const cleanName = sanitizeFilenameSafe(stripPdfExtension(rawName)) + '.pdf';
   if (!cleanName || cleanName === '.pdf') {
     bus.emit(EVENTS.TOAST_SHOW, {
       message: 'Nome non valido',

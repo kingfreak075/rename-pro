@@ -10,7 +10,7 @@
    ============================================================ */
 
 import { state } from '../core/state.js';
-import { log, error } from '../core/utils.js';
+import { log, error, sanitizeInput, safeObject } from '../core/utils.js';
 
 /**
  * Legge un file Excel e restituisce i dati parsati.
@@ -90,20 +90,31 @@ export async function parseExcel(file) {
 
 /**
  * Legge un foglio e restituisce un array di oggetti.
- * Rimuove righe completamente vuote.
+ * Rimuove righe completamente vuote + sanitizza input.
  */
 function readSheet(workbook, sheetName) {
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json(sheet, {
     defval: '',
-    raw: false,       // Usa i valori formattati
+    raw: false,
     dateNF: 'dd/mm/yyyy',
   });
 
-  // Filtra righe vuote (tutte le colonne vuote)
-  return rows.filter((row) =>
-    Object.values(row).some((v) => v !== '' && v != null)
-  );
+  // Filtra righe vuote + sanitizza
+  return rows
+    .filter((row) =>
+      Object.values(row).some((v) => v !== '' && v != null)
+    )
+    .map((row) => {
+      // Sanitizza ogni campo (previene XSS)
+      const safe = safeObject(row);
+      for (const key of Object.keys(safe)) {
+        if (typeof safe[key] === 'string') {
+          safe[key] = sanitizeInput(safe[key], 500);
+        }
+      }
+      return safe;
+    });
 }
 
 /**

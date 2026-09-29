@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { bus, EVENTS } from '../core/events.js';
-import { log, error, sanitizeFilename, stripPdfExtension } from '../core/utils.js';
+import { log, error, sanitizeFilenameSafe, stripPdfExtension } from '../core/utils.js';
 
 let isRunning = false;
 
@@ -64,7 +64,7 @@ export async function startBatchRename() {
     const item = toProcess[i];
     try {
       // Sanitizza nome finale
-      let finalName = sanitizeFilename(stripPdfExtension(item.newName)) + '.pdf';
+      let finalName = sanitizeFilenameSafe(stripPdfExtension(item.newName)) + '.pdf';
 
       // Gestione duplicati: aggiungi suffisso _2, _3...
       if (usedNames.has(finalName.toLowerCase())) {
@@ -132,7 +132,7 @@ export async function startBatchRename() {
 function findCollisions(items) {
   const counts = {};
   items.forEach((item) => {
-    const name = sanitizeFilename(stripPdfExtension(item.newName)) + '.pdf';
+    const name = sanitizeFilenameSafe(stripPdfExtension(item.newName)) + '.pdf';
     counts[name] = (counts[name] || 0) + 1;
   });
 
