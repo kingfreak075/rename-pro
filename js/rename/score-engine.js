@@ -5,7 +5,7 @@
 import { state } from '../core/state.js';
 import { log, warn } from '../core/utils.js';
 import * as matcher from '../data/matcher.js';
-import * as normalizer from '../data/normalizer.js';
+import * as searchEngine from '../search/search-engine.js';
 
 /**
  * Calcola lo score per un singolo PDF.
@@ -46,41 +46,32 @@ export function computeScoreForPdf(pdfItem) {
     return { score: 0, reason: 'Record IA senza indirizzo né matricola', matchCount: 0 };
   }
 
-  // 4. Prova match per matricola (più affidabile)
-  // 4. Prova match per matricola (più affidabile)
-  const matricolaMatch = tryMatricolaMatch(iaRecord);
-  if (matricolaMatch.matched) {
-    // Se match esatto e univoco → score 3
-    if (matricolaMatch.quality === 'exact' && matricolaMatch.count === 1) {
-      return { score: 3, reason: 'Matricola univoca (esatta)', matchCount: 1, matchedBy: 'matricola' };
+  // 4. Prova match per MATRICOLA (più affidabile)
+  if (iaRecord.matricola) {
+    const matricolaResults = searchEngine.search(iaRecord.matricola, { limit: 10 });
+    if (matricolaResults.length === 1) {
+      return { score: 3, reason: 'Matricola univoca', matchCount: 1, matchedBy: 'matricola' };
     }
-    // Se match "short" (parziale) e univoco → score 3 (fiducioso ma meno)
-    if (matricolaMatch.quality === 'short' && matricolaMatch.count === 1) {
-      return { score: 3, reason: 'Matricola univoca (parziale)', matchCount: 1, matchedBy: 'matricola' };
+    if (matricolaResults.length >= 2 && matricolaResults.length <= 3) {
+      return { score: 2, reason: `Matricola con ${matricolaResults.length} match`, matchCount: matricolaResults.length, matchedBy: 'matricola' };
     }
-    // Se multipli match → score 2
-    if (matricolaMatch.count >= 2 && matricolaMatch.count <= 3) {
-      return { score: 2, reason: `Matricola con ${matricolaMatch.count} match`, matchCount: matricolaMatch.count, matchedBy: 'matricola' };
+    if (matricolaResults.length > 3) {
+      return { score: 1, reason: `Matricola con ${matricolaResults.length} match`, matchCount: matricolaResults.length, matchedBy: 'matricola' };
     }
-    if (matricolaMatch.count > 3) {
-      return { score: 1, reason: `Matricola con ${matricolaMatch.count} match`, matchCount: matricolaMatch.count, matchedBy: 'matricola' };
-    }
+    // 0 risultati → prova indirizzo
   }
 
-  // 5. Fallback: match per indirizzo
+  // 5. Fallback: match per INDIRIZZO
   if (iaRecord.indirizzo) {
-    const indirizzoQuery = normalizer.extractSearchableAddress(iaRecord.indirizzo);
-    if (indirizzoQuery.length >= 3) {
-      const indirizzoMatches = countMatchesInParco(indirizzoQuery);
-      if (indirizzoMatches === 1) {
-        return { score: 3, reason: 'Indirizzo univoco', matchCount: 1, matchedBy: 'indirizzo' };
-      }
-      if (indirizzoMatches >= 2 && indirizzoMatches <= 3) {
-        return { score: 2, reason: 'Indirizzo con pochi match', matchCount: indirizzoMatches, matchedBy: 'indirizzo' };
-      }
-      if (indirizzoMatches > 3) {
-        return { score: 1, reason: 'Indirizzo con molti match', matchCount: indirizzoMatches, matchedBy: 'indirizzo' };
-      }
+    const indirizzoResults = searchEngine.search(iaRecord.indirizzo, { limit: 10 });
+    if (indirizzoResults.length === 1) {
+      return { score: 3, reason: 'Indirizzo univoco', matchCount: 1, matchedBy: 'indirizzo' };
+    }
+    if (indirizzoResults.length >= 2 && indirizzoResults.length <= 3) {
+      return { score: 2, reason: `Indirizzo con ${indirizzoResults.length} match`, matchCount: indirizzoResults.length, matchedBy: 'indirizzo' };
+    }
+    if (indirizzoResults.length > 3) {
+      return { score: 1, reason: `Indirizzo con ${indirizzoResults.length} match`, matchCount: indirizzoResults.length, matchedBy: 'indirizzo' };
     }
   }
 
@@ -88,80 +79,8 @@ export function computeScoreForPdf(pdfItem) {
 }
 
 /**
- * Prova un match per matricola.
- * Restituisce { matched: boolean, count: number, quality: 'exact'|'short'|'none' }.
- */
-function tryMatricolaMatch(iaRecord) {
-  if (!iaRecord.matricola) return { matched: false, count: 0, quality: 'none' };
-
-  const iaKeys = normalizer.getMatricolaKeys(iaRecord.matricola);
-  if (!iaKeys.compact || iaKeys.compact.length < 3) {
-    return { matched: false, count: 0, quality: 'none' };
-  }
-
-  let exactCount = 0;
-  let shortCount = 0;
-
-  for (const imp of state.excelData.parco) {
-    const parcoKeys = normalizer.getMatricolaKeys(imp.matricola);
-    if (!parcoKeys.compact) continue;
-
-    // Match esatto
-    if (parcoKeys.compact === iaKeys.compact) {
-      exactCount++;
-    }
-    // Match "short" (uno contiene l'altro)
-    else if (
-      iaKeys.short.length >= 3 &&
-      parcoKeys.compact === iaKeys.short
-    ) {
-      shortCount++;
-    }
-    else if (
-      parcoKeys.short.length >= 3 &&
-      parcoKeys.short === iaKeys.compact
-    ) {
-      shortCount++;
-    }
-  }
-
-  if (exactCount > 0) {
-    return { matched: true, count: exactCount, quality: 'exact' };
-  }
-  if (shortCount > 0) {
-    return { matched: true, count: shortCount, quality: 'short' };
-  }
-
-  return { matched: false, count: 0, quality: 'none' };
-}
-
-/**
- * Conta i match nel PARCO per una query.
- */
-function countMatchesInParco(query) {
-  if (!query) return 0;
-
-  const q = query.toLowerCase();
-  let count = 0;
-
-  for (const imp of state.excelData.parco) {
-    const indirizzo = (imp['Indirizzo impianto'] || '').toLowerCase();
-    const localita = (imp['Località impianto'] || '').toLowerCase();
-
-    if (indirizzo.includes(q) || localita.includes(q)) {
-      count++;
-    }
-  }
-
-  return count;
-}
-
-/**
  * Calcola lo score per TUTTI i PDF pending (non processati).
  * Filtra: solo item con status 'pending' o mai processati.
- *
- * @param {Object} options - { force: boolean } → se true, ricalcola anche i processati
- * @returns {Object} - Riepilogo { total, updated, skipped, scores: {...} }
  */
 export function computeAllScores(options = {}) {
   const { force = false } = options;
@@ -186,7 +105,6 @@ export function computeAllScores(options = {}) {
   for (const item of state.pdfItems) {
     // Salta i processati (a meno che force=true)
     if (!force && item.status === 'processed' && item.score != null) {
-      // Conta comunque nello storico
       if (item.score != null) distribution[item.score]++;
       skipped++;
       continue;
@@ -236,9 +154,6 @@ export function estimateTime(distribution) {
   return formatTime(totalSeconds);
 }
 
-/**
- * Formatta secondi in "Xh Ym" o "Ym Zs".
- */
 function formatTime(seconds) {
   if (seconds < 60) return `${seconds}s`;
 

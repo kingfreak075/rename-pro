@@ -95,15 +95,38 @@ export function normalizeAddress(address) {
  * Estrae la "parte pulita" di un indirizzo per la ricerca.
  * Rimuove prefisso + civico (se presente in coda).
  */
+/**
+ * Estrae la "parte pulita" di un indirizzo per la ricerca.
+ * Rimuove:
+ * - Prefisso descrittivo (es. "SCUOLA MATERNA - ")
+ * - Prefisso stradale (VIA, VIALE, ...)
+ * - Iniziali puntate (es. "A.", "G.", "L.", "P.", "T.")
+ * - Civico in coda
+ */
 export function extractSearchableAddress(address) {
   if (!address) return '';
-  let clean = stripStreetPrefix(address);
 
-  // Rimuovi civico in coda (numeri + eventuali lettere/barre)
+  let clean = String(address).trim();
+
+  // 1. Rimuovi prefisso descrittivo (tutto ciò che precede " - ")
+  const dashIndex = clean.lastIndexOf(' - ');
+  if (dashIndex > 0 && dashIndex < clean.length - 3) {
+    clean = clean.substring(dashIndex + 3).trim();
+  }
+
+  // 2. Rimuovi prefisso stradale
+  clean = stripStreetPrefix(clean);
+
+  // 3. Rimuovi iniziali puntate
+  clean = clean.replace(/\b[A-Z]\.\s*/g, '');
+
+  // 4. Rimuovi civico in coda
   clean = clean.replace(/\s+\d+[\/\w\s]*$/, '').trim();
 
+  // 5. Normalizza
   return clean.toUpperCase().replace(/\s+/g, ' ').trim();
 }
+
 
 /**
  * Sanitizza una matricola per uso in nome file.

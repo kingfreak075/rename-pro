@@ -126,7 +126,8 @@
       <div class="right-column" id="rightCol">
 
         <!-- Filtri lista -->
-      <div class="list-filters" id="listFilters">
+<div class="list-filters" id="listFilters">
+  <!-- Filtro stato -->
   <button class="filter-btn active" data-filter="all">
     Tutti <span class="badge" id="countAll">0</span>
   </button>
@@ -151,6 +152,25 @@
   </button>
 </div>
 
+<!-- Barra filtri score + ordinamento -->
+<div class="score-filters-bar" id="scoreFiltersBar">
+  <span class="score-filters-label">Score:</span>
+  <button class="score-chip active" data-score="all">Tutti</button>
+  <button class="score-chip score-chip-3" data-score="3">🟢 3</button>
+  <button class="score-chip score-chip-2" data-score="2">🟡 2</button>
+  <button class="score-chip score-chip-1" data-score="1">🟠 1</button>
+  <button class="score-chip score-chip-0" data-score="0">🔴 0</button>
+
+  <div class="filters-spacer"></div>
+
+  <label class="sort-label" for="sortBy">Ordina:</label>
+  <select id="sortBy" class="sort-select">
+    <option value="score-desc">🎯 Score (3→0)</option>
+    <option value="score-asc">Score (0→3)</option>
+    <option value="name">Nome file (A→Z)</option>
+    <option value="original">Ordine originale</option>
+  </select>
+</div>
         <!-- Lista PDF -->
         <div class="pdf-list" id="pdfList">
           <div class="empty-state">

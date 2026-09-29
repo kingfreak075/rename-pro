@@ -78,11 +78,13 @@ function renderItem(item) {
     isProcessed ? 'processed' : '',
   ].filter(Boolean).join(' ');
 
+  // Badge score
+  const scoreBadge = renderScoreBadge(item);
+
   // Azioni a destra
   let actionsHtml = '';
 
   if (item.isEditing) {
-    // Modalità rinomina inline
     actionsHtml = `
       <div class="inline-rename" data-action="stop-propagation">
         <input
@@ -107,7 +109,6 @@ function renderItem(item) {
       </div>
     `;
   } else {
-    // Azioni normali
     if (!isProcessed) {
       actionsHtml += `
         <button class="btn btn-ghost btn-icon"
@@ -138,13 +139,13 @@ function renderItem(item) {
     }
   }
 
-  // Nuovo nome
   const newNameDisplay = item.newName
     ? escapeHtml(item.newName)
     : 'In attesa di rinomina...';
 
   return `
     <div class="${classes}" data-idx="${globalIdx}" data-action="select-pdf">
+      ${scoreBadge}
       <i class="fas ${isProcessed ? 'fa-check-circle' : 'fa-file-pdf'}"></i>
       <div class="pdf-item-info">
         <div class="pdf-item-name" title="${escapeHtml(item.name)}">
@@ -161,20 +162,55 @@ function renderItem(item) {
   `;
 }
 
+/**
+ * Renderizza il badge score (0-3) con colore e tooltip.
+ */
+function renderScoreBadge(item) {
+  if (item.score == null) {
+    return `<span class="score-badge score-badge-none" title="Score non calcolato">—</span>`;
+  }
+
+  const score = item.score;
+  const reason = item.scoreReason || '';
+  const tooltip = `${reason}${item.scoreMatchCount ? ` (${item.scoreMatchCount} match)` : ''}`;
+
+  return `<span class="score-badge score-badge-${score}" title="${escapeHtml(tooltip)}">${score}</span>`;
+}
+
 // ============================================================
 // EVENTI
 // ============================================================
 
 function bindFilters() {
-  const buttons = document.querySelectorAll('.filter-btn');
-  buttons.forEach((btn) => {
+  // Filtro stato (Tutti / Da Fare / Completati)
+  const stateButtons = document.querySelectorAll('.filter-btn');
+  stateButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      buttons.forEach((b) => b.classList.remove('active'));
+      stateButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       const filter = btn.dataset.filter || 'all';
       state.setFilter(filter);
     });
   });
+
+  // Filtro score (chip colorati)
+  const scoreChips = document.querySelectorAll('.score-chip');
+  scoreChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      scoreChips.forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      const score = chip.dataset.score || 'all';
+      state.setScoreFilter(score);
+    });
+  });
+
+  // Select ordinamento
+  const sortSelect = document.getElementById('sortBy');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', (e) => {
+      state.setSortBy(e.target.value);
+    });
+  }
 }
 
 /**

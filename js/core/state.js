@@ -54,6 +54,7 @@ class AppState {
     this.pdfItems = [];           // Array di { id, name, handle, newName, selectedImpianto, iaRecord, status, isEditing }
     this.currentFilter = 'all';   // all | pending | done
         this.currentScoreFilter = 'all';   // all | 0 | 1 | 2 | 3
+            this.currentSortBy = 'score-desc';   // score-desc | score-asc | name | original
     this.currentSelectedIdx = -1;
 
     // ---------- PDF CORRENTE ----------
@@ -258,8 +259,13 @@ class AppState {
     bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
   }
 
-  getFilteredPdfItems() {
-    let items = this.pdfItems;
+    setSortBy(sortBy) {
+    this.currentSortBy = sortBy;
+    bus.emit(EVENTS.PDF_LIST_UPDATED, { count: this.pdfItems.length });
+  }
+
+   getFilteredPdfItems() {
+    let items = [...this.pdfItems];
 
     // Filtro stato
     if (this.currentFilter === 'pending') {
@@ -274,7 +280,82 @@ class AppState {
       items = items.filter((i) => i.score === score);
     }
 
+    // Ordinamento
+    items = this.applySort(items);
+
     return items;
+  }
+
+  /**
+   * Applica l'ordinamento agli item filtrati.
+   */
+  applySort(items) {
+    const sortBy = this.currentSortBy;
+
+    switch (sortBy) {
+      case 'score-desc':
+        // Score 3 → 0 (i null vanno in fondo)
+        return items.sort((a, b) => {
+          const sa = a.score == null ? -1 : a.score;
+          const sb = b.score == null ? -1 : b.score;
+          if (sb !== sa) return sb - sa;
+          return a.name.localeCompare(b.name, 'it');
+        });
+
+      case 'score-asc':
+        // Score 0 → 3 (i null vanno in fondo)
+        return items.sort((a, b) => {
+          const sa = a.score == null ? 99 : a.score;
+          const sb = b.score == null ? 99 : b.score;
+          if (sa !== sb) return sa - sb;
+          return a.name.localeCompare(b.name, 'it');
+        });
+
+      case 'name':
+        // Alfabetico A→Z
+        return items.sort((a, b) => a.name.localeCompare(b.name, 'it'));
+
+      case 'original':
+      default:
+        // Ordine di arrivo (già preservato da [...this.pdfItems])
+        return items;
+    }
+  }
+
+  /**
+   * Applica l'ordinamento agli item filtrati.
+   */
+  applySort(items) {
+    const sortBy = this.currentSortBy;
+
+    switch (sortBy) {
+      case 'score-desc':
+        // Score 3 → 0 (i null vanno in fondo)
+        return items.sort((a, b) => {
+          const sa = a.score == null ? -1 : a.score;
+          const sb = b.score == null ? -1 : b.score;
+          if (sb !== sa) return sb - sa;
+          return a.name.localeCompare(b.name, 'it');
+        });
+
+      case 'score-asc':
+        // Score 0 → 3 (i null vanno in fondo)
+        return items.sort((a, b) => {
+          const sa = a.score == null ? 99 : a.score;
+          const sb = b.score == null ? 99 : b.score;
+          if (sa !== sb) return sa - sb;
+          return a.name.localeCompare(b.name, 'it');
+        });
+
+      case 'name':
+        // Alfabetico A→Z
+        return items.sort((a, b) => a.name.localeCompare(b.name, 'it'));
+
+      case 'original':
+      default:
+        // Ordine di arrivo (già preservato da [...this.pdfItems])
+        return items;
+    }
   }
 
   // ============================================================

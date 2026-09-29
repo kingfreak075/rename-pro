@@ -27,11 +27,14 @@ export async function parseIaFile(file) {
   log(`IA: parsing foglio "${sheetName}"`);
 
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, {
-    defval: '',
-    raw: false,
-    header: 1,   // Array di array (non oggetti)
-  });
+ const rows = XLSX.utils.sheet_to_json(sheet, {
+  defval: '',
+  raw: false,
+  header: 1,
+  cellText: true,     // ← AGGIUNGI: usa il testo visualizzato
+  cellDates: false,
+  cellNF: true,       // ← AGGIUNGI: usa il formato numero
+});
 
   if (rows.length < 2) {
     throw new Error('Il file IA è vuoto o non ha intestazioni');
@@ -68,7 +71,7 @@ export async function parseIaFile(file) {
       indirizzo: idx.indirizzo >= 0 ? String(row[idx.indirizzo] || '').trim() : '',
       civico: idx.civico >= 0 ? String(row[idx.civico] || '').trim() : '',
       localita: idx.localita >= 0 ? String(row[idx.localita] || '').trim() : '',
-      matricola: idx.matricola >= 0 ? String(row[idx.matricola] || '').trim() : '',
+  matricola: idx.matricola >= 0 ? cleanMatricola(row[idx.matricola]) : '',
       esito: idx.esito >= 0 ? String(row[idx.esito] || '').trim() : '',
     };
 
@@ -92,4 +95,56 @@ export async function loadAndApply(file, fileName) {
     error('Errore parsing IA:', err);
     throw err;
   }
+}
+
+
+/**
+ * Ripulisce una matricola "sporca" (decimale lungo, stringa vuota, N.D., ecc.).
+ * Se il valore è un decimale con molte cifre decimali, prova a convertirlo in frazione
+ * oppure lo scarta.
+ */
+function cleanMatricola(value) {
+  if (value == null || value === '') return '';
+
+  const str = String(value).trim();
+  if (!str) return '';
+  if (str.toUpperCase() === 'N.D.' || str.toUpperCase() === 'ND') return '';
+
+  // Se è un numero decimale con molte cifre (>4 decimali) → sospetto
+  const num = Number(str);
+  if (Number.isFinite(num) && !Number.isInteger(num)) {
+    const decimals = (str.split('.')[1] || '').length;
+    if (decimals > 4) {
+      // Prova a convertire in frazione (denominatore piccolo)
+      const fraction = decimalToFraction(num);
+      if (fraction) return fraction;
+      // Altrimenti scarta (lascia vuoto)
+      log(`Matricola spazzatura scartata: "${str}"`);
+      return '';
+    }
+  }
+
+  return str;
+}
+
+/**
+ * Converte un decimale in frazione (approssimazione con denominatore ≤ 100).
+ * Es: 0.076195219123506 → "1/3"
+ */
+function decimalToFraction(value) {
+  if (!Number.isFinite(value)) return null;
+
+  // Prova con denominatori crescenti
+  const maxDen = 100;
+  const tolerance = 1e-6;
+
+  for (let den = 2; den <= maxDen; den++) {
+    const num = value * den;
+    const roundedNum = Math.round(num);
+    if (Math.abs(num - roundedNum) < tolerance) {
+      return `${roundedNum}/${den}`;
+    }
+  }
+
+  return null;
 }
