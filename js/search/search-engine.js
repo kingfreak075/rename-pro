@@ -9,116 +9,109 @@ import { normalizeMatricolaForSearch } from '../data/normalizer.js';
 export function search(query, options = {}) {
   const { zona = '', limit = 50 } = options;
 
-  if (!state.excelData.loaded) return [];
+  if (!state.excelData.loaded) {
+    return [];
+  }
 
   const q = normalizeString(query);
   const qMatricola = normalizeMatricolaForSearch(query);
 
-  if (!q || q.length < 2) return [];
+  if (!q || q.length < 2) {
+    return [];
+  }
 
   const variants = generateQueryVariants(query);
   log(`Varianti per "${query}":`, variants);
 
-  const results = [];
+  // ============================================================
+  // APPROCCIO EARLY-STOP:
+  // Prova le varianti dalla più specifica alla più generica.
+  // Appena una variante trova risultati "buoni", usa SOLO quelli.
+  // ============================================================
+
+  const allResults = [];
   const seen = new Set();
 
-  for (const imp of state.excelData.parco) {
-    if (zona && imp.zona != zona) continue;
+  for (const variant of variants) {
+    if (!variant || variant.length < 2) continue;
+    const v = normalizeString(variant);
+    if (!v) continue;
 
-    const indirizzo = normalizeString(imp['Indirizzo impianto']);
-    const localita = normalizeString(imp['Località impianto']);
-    const codice = normalizeString(imp.impianto);
-    const matricola = normalizeString(imp.matricola);
-    const matricolaCompact = normalizeMatricolaForSearch(imp.matricola);
-    const cliente = normalizeString(imp.Cliente);
-    const zonaField = normalizeString(imp.zona);
+    // Cerca questa variante in TUTTI gli impianti
+    const variantResults = [];
 
-    let matchedField = null;
-    let matchedVariant = null;
-    let matchedQuality = 'low';
-
-    // 1. Match matricola (priorità alta)
-    if (matricola.includes(q) || (qMatricola.length >= 2 && matricolaCompact.includes(qMatricola))) {
-      matchedField = 'matricola';
-      matchedQuality = 'exact';
-    }
-    // 2. Match con varianti
-    else {
-      for (const variant of variants) {
-        if (!variant || variant.length < 2) continue;
-        const v = normalizeString(variant);
-        if (!v) continue;
-
-        // Prova match con parola intera
-        if (matchWholeWord(v, indirizzo)) {
-          matchedField = 'indirizzo'; matchedVariant = v; matchedQuality = 'word'; break;
-        }
-        if (matchWholeWord(v, localita)) {
-          matchedField = 'localita'; matchedVariant = v; matchedQuality = 'word'; break;
-        }
-        if (matchWholeWord(v, codice)) {
-          matchedField = 'codice'; matchedVariant = v; matchedQuality = 'word'; break;
-        }
-        if (matchWholeWord(v, cliente)) {
-          matchedField = 'cliente'; matchedVariant = v; matchedQuality = 'word'; break;
-        }
-        if (matchWholeWord(v, zonaField)) {
-          matchedField = 'zona'; matchedVariant = v; matchedQuality = 'word'; break;
-        }
-
-        // Fallback: match semplice (includes)
-        if (indirizzo.includes(v)) { matchedField = 'indirizzo'; matchedVariant = v; matchedQuality = 'low'; break; }
-        if (localita.includes(v)) { matchedField = 'localita'; matchedVariant = v; matchedQuality = 'low'; break; }
-        if (codice.includes(v)) { matchedField = 'codice'; matchedVariant = v; matchedQuality = 'low'; break; }
-        if (cliente.includes(v)) { matchedField = 'cliente'; matchedVariant = v; matchedQuality = 'low'; break; }
-        if (zonaField.includes(v)) { matchedField = 'zona'; matchedVariant = v; matchedQuality = 'low'; break; }
-      }
-    }
-
-    if (matchedField) {
-      let score = 10;
-      const fieldValue =
-        matchedField === 'indirizzo' ? indirizzo :
-        matchedField === 'localita' ? localita :
-        matchedField === 'codice' ? codice :
-        matchedField === 'matricola' ? matricola :
-        matchedField === 'cliente' ? cliente :
-        zonaField;
-
-      if (fieldValue === q) score = 100;
-      else if (fieldValue.startsWith(q)) score = 50;
-      else if (matchedQuality === 'word') score = 40;
-      else if (matchedVariant && matchedVariant !== q) {
-        score = Math.min(80, 20 + matchedVariant.length * 2);
-      }
-
-      // Pesi per campo (moderati)
-      const fieldWeights = {
-        matricola: 1.5,
-        codice: 1.2,
-        indirizzo: 1.0,
-        localita: 0.8,   // ← meno penalizzante di prima
-        cliente: 0.9,
-        zona: 0.7,
-      };
-      score = Math.round(score * (fieldWeights[matchedField] || 1.0));
-
-      if (matchedQuality === 'word') score += 10;
-
-      if (matchedField === 'matricola' && matricolaCompact === qMatricola) {
-        score = 200;
-      }
+    for (const imp of state.excelData.parco) {
+      if (zona && imp.zona != zona) continue;
 
       const id = String(imp.impianto);
-      if (!seen.has(id)) {
-        seen.add(id);
-        results.push({ impianto: imp, score, matchedField });
+      if (seen.has(id)) continue; // Già trovato in una variante precedente
+
+      const indirizzo = normalizeString(imp['Indirizzo impianto']);
+      const localita = normalizeString(imp['Località impianto']);
+      const codice = normalizeString(imp.impianto);
+      const matricola = normalizeString(imp.matricola);
+      const matricolaCompact = normalizeMatricolaForSearch(imp.matricola);
+      const cliente = normalizeString(imp.Cliente);
+      const zonaField = normalizeString(imp.zona);
+
+      let matchedField = null;
+      let score = 10;
+
+      // Match matricola (priorità assoluta)
+      if (matricola.includes(q) || (qMatricola.length >= 2 && matricolaCompact.includes(qMatricola))) {
+        matchedField = 'matricola';
+        score = (matricolaCompact === qMatricola) ? 200 : 100;
       }
+      // Match indirizzo
+      else if (indirizzo.includes(v)) {
+        matchedField = 'indirizzo';
+        score = 80;
+        if (indirizzo === v) score = 150;
+        else if (indirizzo.startsWith(v)) score = 120;
+      }
+      // Match località
+      else if (localita.includes(v)) {
+        matchedField = 'localita';
+        score = 40;
+      }
+      // Match codice
+      else if (codice.includes(v)) {
+        matchedField = 'codice';
+        score = 60;
+      }
+      // Match cliente
+      else if (cliente.includes(v)) {
+        matchedField = 'cliente';
+        score = 30;
+      }
+      // Match zona
+      else if (zonaField.includes(v)) {
+        matchedField = 'zona';
+        score = 20;
+      }
+
+      if (matchedField) {
+        variantResults.push({ impianto: imp, score, matchedField });
+      }
+    }
+
+    // Se questa variante ha trovato risultati, usa SOLO questi
+    if (variantResults.length > 0) {
+      log(`Variante "${variant}" → ${variantResults.length} risultati. STOP.`);
+      
+      for (const r of variantResults) {
+        const id = String(r.impianto.impianto);
+        seen.add(id);
+        allResults.push(r);
+      }
+      
+      // EARLY STOP: non provare varianti più generiche
+      break;
     }
   }
 
-  results.sort((a, b) => b.score - a.score);
-  return results.slice(0, limit).map((r) => r.impianto);
+  allResults.sort((a, b) => b.score - a.score);
+  return allResults.slice(0, limit).map((r) => r.impianto);
 }
 
 /**
