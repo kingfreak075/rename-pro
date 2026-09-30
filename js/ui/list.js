@@ -7,6 +7,7 @@
 import { state } from '../core/state.js';
 import { bus, EVENTS } from '../core/events.js';
 import { escapeHtml, stripPdfExtension } from '../core/utils.js';
+import * as normalizer from '../data/normalizer.js';
 
 let listContainer = null;
 
@@ -316,9 +317,16 @@ function selectPdf(idx) {
     if (!needsManual && iaRecord.indirizzo) {
       const searchInput = document.getElementById('searchInput');
       if (searchInput) {
-        const normalized = matcher.getIaSearchQuery(iaRecord);
-        const cleanQuery = normalized.replace(/^(VIA|VIALE|CORSO|PIAZZA|PIAZZETTA|LARGO|VICOLO|STRADA)\s+/i, '');
-        searchInput.value = cleanQuery;
+        // Precompila con via + civico (se esiste)
+        const viaPulita = normalizer.extractSearchableAddress(iaRecord.indirizzo);
+        const civico = (iaRecord.civico || '').toString().trim();
+
+        let query = viaPulita;
+        if (civico) {
+          query = `${viaPulita} ${civico}`;
+        }
+
+        searchInput.value = query;
       }
 
       // Apri drawer e avvia ricerca automatica
@@ -347,7 +355,6 @@ function openSearchFor(idx) {
   state.selectPdf(idx);
   bus.emit(EVENTS.SEARCH_OPENED);
 
-  // Match IA anche quando si apre il drawer manualmente
   const item = state.pdfItems[idx];
   if (!item) return;
 
@@ -357,6 +364,16 @@ function openSearchFor(idx) {
   if (iaRecord) {
     state.setCurrentIaMatch(iaRecord, needsManual);
     bus.emit('ia:show-panel', { record: iaRecord, needsManual });
+
+    // Precompila con via + civico
+    if (!needsManual && iaRecord.indirizzo) {
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        const viaPulita = normalizer.extractSearchableAddress(iaRecord.indirizzo);
+        const civico = (iaRecord.civico || '').toString().trim();
+        searchInput.value = civico ? `${viaPulita} ${civico}` : viaPulita;
+      }
+    }
   } else {
     bus.emit('ia:hide-panel');
     const searchInput = document.getElementById('searchInput');

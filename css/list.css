@@ -692,3 +692,49 @@
     justify-content: flex-end;
   }
 }
+
+
+/* ============================================================
+   MATCH CIVICO — Badge + evidenziazione card
+   ============================================================ */
+
+/* Badge "✓ civico" accanto al codice impianto */
+.badge-civico {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #16a34a;
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 6px;
+  vertical-align: middle;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.3);
+}
+
+.badge-civico i {
+  font-size: 0.65rem;
+}
+
+/* Card con match civico: bordo verde a sinistra + sfondo chiaro */
+.result-card.result-civico-match {
+  border-left: 4px solid #16a34a;
+  background: linear-gradient(to right, #f0fdf4 0%, #ffffff 30%);
+  padding-left: 13px;
+}
+
+.result-card.result-civico-match:hover {
+  border-left-color: #15803d;
+  background: linear-gradient(to right, #dcfce7 0%, #ffffff 40%);
+}
+
+/* Separatore tra codice e indirizzo nel result-main */
+.result-main-sep {
+  color: var(--text-muted);
+  margin: 0 6px;
+  font-weight: 400;
+}

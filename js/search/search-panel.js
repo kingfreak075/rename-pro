@@ -7,6 +7,7 @@ import { bus, EVENTS } from '../core/events.js';
 import { escapeHtml, debounce, log } from '../core/utils.js';
 import * as engine from './search-engine.js';
 import * as detailsModal from './details-modal.js';
+import * as normalizer from '../data/normalizer.js';
 
 let drawer, input, resultsContainer, btnOpen, btnClose, btnSearch, btnClear, btnRecent;
 let selectZona;
@@ -147,11 +148,14 @@ function performSearch(saveToHistory = true) {
     state.addToSearchHistory(query);
   }
 
-  renderResults(results, query);
+  // Ottieni il civico IA corrente (se c'è un PDF selezionato con match IA positivo)
+  const iaCivico = state.currentIaMatch?.civico || null;
+
+  renderResults(results, query, iaCivico);
   bus.emit(EVENTS.SEARCH_RESULTS, { count: results.length });
 }
 
-function renderResults(results, query) {
+function renderResults(results, query, iaCivico = null) {
   if (!resultsContainer) return;
 
   if (results.length === 0) {
@@ -164,21 +168,52 @@ function renderResults(results, query) {
     return;
   }
 
-  const html = results
-    .map((imp) => {
+  // Normalizza il civico IA
+  const civicoNormalizzato = iaCivico ? normalizeCivico(iaCivico) : null;
+  const showBadge = results.length > 1 && civicoNormalizzato;
+
+  // Prepara i risultati con info sul match civico
+  const enrichedResults = results.map((imp) => {
+    const indirizzo = imp['Indirizzo impianto'] || '';
+    const civicoRisultato = extractCivicoFromAddress(indirizzo);
+    const isCivicoMatch = showBadge &&
+                          civicoRisultato &&
+                          matchCivico(civicoNormalizzato, civicoRisultato);
+
+    return { imp, indirizzo, isCivicoMatch };
+  });
+
+  // Riordina: match civico prima, poi gli altri
+  enrichedResults.sort((a, b) => {
+    if (a.isCivicoMatch && !b.isCivicoMatch) return -1;
+    if (!a.isCivicoMatch && b.isCivicoMatch) return 1;
+    return 0;
+  });
+
+  const html = enrichedResults
+    .map(({ imp, isCivicoMatch }) => {
       const indirizzo = imp['Indirizzo impianto'] || '';
       const localita = imp['Località impianto'] || '';
       const matricola = imp.matricola || 'N/A';
       const commerciale = engine.getCommerciale(imp.venditore);
       const giro = engine.getGiro(imp.giro);
 
+      const cardClasses = ['result-card', 'result-parco'];
+      if (isCivicoMatch) cardClasses.push('result-civico-match');
+
+      const badgeCivico = isCivicoMatch
+        ? `<span class="badge-civico"><i class="fas fa-check"></i> civico</span>`
+        : '';
+
       return `
-        <div class="result-card result-parco" data-codice="${escapeHtml(imp.impianto)}">
+        <div class="${cardClasses.join(' ')}" data-codice="${escapeHtml(imp.impianto)}">
           <div class="result-card-header">
             <div class="result-card-body">
               <div class="result-main">
                 <i class="fas fa-industry"></i>
-                ${highlightText(imp.impianto + ' - ' + indirizzo, query)}
+                ${highlightText(imp.impianto, query)}${badgeCivico}
+                <span class="result-main-sep">-</span>
+                ${highlightText(indirizzo, query)}
               </div>
               <div class="result-details">
                 <span><i class="fas fa-map-pin"></i> ${escapeHtml(localita)}</span>
@@ -323,4 +358,51 @@ export function searchFromExternal(query) {
     input?.focus();
     input?.select();
   }, 350);
+}
+
+
+/**
+ * Estrae il civico da un indirizzo tipo "VIA TRILUSSA 5" → "5"
+ * o "VIA TRILUSSA 5/A" → "5/A" o "VIA TRILUSSA 5 A" → "5 A".
+ */
+function extractCivicoFromAddress(address) {
+  if (!address) return null;
+  const str = String(address).trim();
+  // Prende l'ultimo gruppo di cifre (con eventuale lettera/slash finale)
+  const match = str.match(/(\d+[\/\w]?(?:\s*[A-Z])?)\s*$/i);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Normalizza un civico per il confronto:
+ * - "14" → "14"
+ * - "14/A" → "14A"
+ * - "14 A" → "14A"
+ * - "14a" → "14A"
+ */
+function normalizeCivico(civico) {
+  if (!civico) return '';
+  return String(civico)
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/\//g, '')
+    .trim();
+}
+
+/**
+ * Verifica se 2 civici matchano.
+ * - "14" vs "14" → true
+ * - "14" vs "14A" → true (uno inizia con l'altro)
+ * - "14" vs "14 A" → true (dopo normalizzazione)
+ * - "14" vs "15" → false
+ */
+function matchCivico(civicoIA, civicoRisultato) {
+  if (!civicoIA || !civicoRisultato) return false;
+  const a = normalizeCivico(civicoIA);
+  const b = normalizeCivico(civicoRisultato);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // Uno inizia con l'altro (es. "14" matcha "14A")
+  if (a.startsWith(b) || b.startsWith(a)) return true;
+  return false;
 }
